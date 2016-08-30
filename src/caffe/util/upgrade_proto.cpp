@@ -884,12 +884,16 @@ const char* UpgradeV1LayerType(const V1LayerParameter_LayerType type) {
     return "Deconvolution";
   case V1LayerParameter_LayerType_DATA:
     return "Data";
+  case V1LayerParameter_LayerType_DATA_HEATMAP:
+    return "DataHeatmap";
   case V1LayerParameter_LayerType_DROPOUT:
     return "Dropout";
   case V1LayerParameter_LayerType_DUMMY_DATA:
     return "DummyData";
   case V1LayerParameter_LayerType_EUCLIDEAN_LOSS:
     return "EuclideanLoss";
+  case V1LayerParameter_LayerType_EUCLIDEAN_LOSS_HEATMAP:
+    return "EuclideanLossHeatmap";
   case V1LayerParameter_LayerType_ELTWISE:
     return "Eltwise";
   case V1LayerParameter_LayerType_EXP:

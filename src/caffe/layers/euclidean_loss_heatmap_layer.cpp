@@ -84,7 +84,7 @@ void EuclideanLossHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& b
             {
                 for (int j = 0; j < label_width; j++)
                 {
-                    int image_idx = idx_img * label_img_size + idx_ch * label_channel_size + i * label_height + j;
+                    int image_idx = idx_img * label_img_size + idx_ch * label_channel_size + i * label_width + j;
                     float diff = (float)bottom_pred[image_idx] - (float)gt_pred[image_idx];
                     loss += diff * diff;
 

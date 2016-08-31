@@ -6,7 +6,7 @@
 #include <utility>
 #include <vector>
 
-#include "caffe/data_layers.hpp"
+#include "caffe/layers/data_layer.hpp"
 #include "caffe/layer.hpp"
 #include "caffe/util/io.hpp"
 #include "caffe/util/math_functions.hpp"

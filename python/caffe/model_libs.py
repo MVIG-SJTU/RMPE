@@ -1,5 +1,6 @@
 import os
 
+import math
 import caffe
 from caffe import layers as L
 from caffe import params as P
@@ -28,13 +29,17 @@ def UnpackVariable(var, num):
     return ret
 
 def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
-    kernel_size, pad, stride, dilation=1, use_scale=True, eps=0.001,
-    conv_prefix='', conv_postfix='', bn_prefix='', bn_postfix='_bn',
-    scale_prefix='', scale_postfix='_scale', bias_prefix='', bias_postfix='_bias'):
+    kernel_size, pad, stride, use_scale=True, eps=0.001, conv_prefix='', conv_postfix='',
+    bn_prefix='', bn_postfix='_bn', scale_prefix='', scale_postfix='_scale',
+    bias_prefix='', bias_postfix='_bias', freeze=False):
+  if freeze:
+    lr_mult=0
+  else:
+    lr_mult=1
   if use_bn:
     # parameters for convolution layer with batchnorm.
     kwargs = {
-        'param': [dict(lr_mult=1, decay_mult=1)],
+        'param': [dict(lr_mult=lr_mult, decay_mult=1)],
         'weight_filler': dict(type='gaussian', std=0.01),
         'bias_term': False,
         }
@@ -47,18 +52,18 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     if use_scale:
       sb_kwargs = {
           'bias_term': True,
-          'param': [dict(lr_mult=1, decay_mult=0), dict(lr_mult=1, decay_mult=0)],
+          'param': [dict(lr_mult=lr_mult, decay_mult=1), dict(lr_mult=lr_mult, decay_mult=0)],
           'filler': dict(type='constant', value=1.0),
           'bias_filler': dict(type='constant', value=0.0),
           }
     else:
       bias_kwargs = {
-          'param': [dict(lr_mult=1, decay_mult=0)],
+          'param': [dict(lr_mult=lr_mult, decay_mult=0)],
           'filler': dict(type='constant', value=0.0),
           }
   else:
     kwargs = {
-        'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+        'param': [dict(lr_mult=lr_mult, decay_mult=1), dict(lr_mult=2*lr_mult, decay_mult=0)],
         'weight_filler': dict(type='xavier'),
         'bias_filler': dict(type='constant', value=0)
         }
@@ -74,8 +79,6 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     net[conv_name] = L.Convolution(net[from_layer], num_output=num_output,
         kernel_h=kernel_h, kernel_w=kernel_w, pad_h=pad_h, pad_w=pad_w,
         stride_h=stride_h, stride_w=stride_w, **kwargs)
-  if dilation > 1:
-    net.update(conv_name, {'dilation': dilation})
   if use_bn:
     bn_name = '{}{}{}'.format(bn_prefix, out_layer, bn_postfix)
     net[bn_name] = L.BatchNorm(net[conv_name], in_place=True, **bn_kwargs)
@@ -89,7 +92,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     relu_name = '{}_relu'.format(conv_name)
     net[relu_name] = L.ReLU(net[conv_name], in_place=True)
 
-def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, dilation=1):
+def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1,freeze=False):
   # ResBody(net, 'pool1', '2a', 64, 64, 256, 1, True)
 
   conv_prefix = 'res{}_'.format(block_name)
@@ -106,7 +109,7 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
         num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
     branch1 = '{}{}'.format(conv_prefix, branch_name)
   else:
     branch1 = from_layer
@@ -116,23 +119,15 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
       num_output=out2a, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2b'
-  if dilation == 1:
-    ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=True,
-        num_output=out2b, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
-        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
-        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
-  else:
-    pad = int((3 + (dilation - 1) * 2) - 1) / 2
-    ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=True,
-        num_output=out2b, kernel_size=3, pad=pad, stride=1, use_scale=use_scale,
-        dilation=dilation, conv_prefix=conv_prefix, conv_postfix=conv_postfix,
-        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
+  ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=True,
+      num_output=out2b, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
+      conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+      bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2c'
@@ -140,7 +135,7 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
       num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
   branch2 = '{}{}'.format(conv_prefix, branch_name)
 
   res_name = 'res{}'.format(block_name)
@@ -190,6 +185,25 @@ def CreateAnnotatedDataLayer(source, batch_size=32, backend=P.Data.LMDB,
             ntop=1, **kwargs)
         return data
 
+def CreateHeatmapDataLayer(output_label=True, train=True, visualise=False, transform_param={}, heatmap_data_param={}):
+    if train:
+        kwargs = {
+                'include': dict(phase=caffe_pb2.Phase.Value('TRAIN')),
+                'heatmap_data_param': heatmap_data_param,
+                'transform_param': transform_param,
+                }
+    else:
+        kwargs = {
+                'include': dict(phase=caffe_pb2.Phase.Value('TEST')),
+                'heatmap_data_param': heatmap_data_param,
+                'transform_param': transform_param,
+                }
+    if output_label:
+        data, label = L.DataHeatmap(name="data", visualise=visualise, ntop=2, **kwargs)
+        return [data, label]
+    else:
+        data = L.DataHeatmap(name="data", visualise=visualise, ntop=1, **kwargs)
+        return data
 
 def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
         dilated=False, nopool=False, dropout=True, freeze_layers=[]):
@@ -317,59 +331,365 @@ def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
 
     return net
 
+def VGGNetBodyBN(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
 
-def ResNet101Body(net, from_layer, use_pool5=True, use_dilation_conv5=False):
-    conv_prefix = ''
-    conv_postfix = ''
-    bn_prefix = 'bn_'
-    bn_postfix = ''
-    scale_prefix = 'scale_'
-    scale_postfix = ''
-    ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=7, pad=3, stride=2,
-        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
-        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    # parameters for batchnorm layer.
+    bn_kwargs = {
+        'param': [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)],
+        'eps': 0.001,
+        }
+    # parameters for scale bias layer after batchnorm.
 
-    net.pool1 = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    sb_kwargs = {
+          'bias_term': True,
+          'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=1, decay_mult=0)],
+          'filler': dict(type='constant', value=1.0),
+          'bias_filler': dict(type='constant', value=0.0),
+          }
 
-    ResBody(net, 'pool1', '2a', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=True)
-    ResBody(net, 'res2a', '2b', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False)
-    ResBody(net, 'res2b', '2c', out2a=64, out2b=64, out2c=256, stride=1, use_branch1=False)
+    assert from_layer in net.keys()
+    net.conv1_1 = L.Convolution(net[from_layer], num_output=64, pad=1, kernel_size=3, **kwargs)
 
-    ResBody(net, 'res2c', '3a', out2a=128, out2b=128, out2c=512, stride=2, use_branch1=True)
+    net.conv1_1_bn = L.BatchNorm(net.conv1_1, in_place=True, **bn_kwargs)
+    net.conv1_1_sb = L.Scale(net.conv1_1_bn, in_place=True, **sb_kwargs)
+    net.relu1_1 = L.ReLU(net.conv1_1, in_place=True)
 
-    from_layer = 'res3a'
-    for i in xrange(1, 4):
-      block_name = '3b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=128, out2b=128, out2c=512, stride=1, use_branch1=False)
-      from_layer = 'res{}'.format(block_name)
+    net.conv1_2 = L.Convolution(net.relu1_1, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv1_2_bn = L.BatchNorm(net.conv1_2, in_place=True, **bn_kwargs)
+    net.conv1_2_sb = L.Scale(net.conv1_2_bn, in_place=True, **sb_kwargs)
 
-    ResBody(net, from_layer, '4a', out2a=256, out2b=256, out2c=1024, stride=2, use_branch1=True)
+    net.relu1_2 = L.ReLU(net.conv1_2, in_place=True)
 
-    from_layer = 'res4a'
-    for i in xrange(1, 23):
-      block_name = '4b{}'.format(i)
-      ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False)
-      from_layer = 'res{}'.format(block_name)
+    if nopool:
+        name = 'conv1_3'
+        net[name] = L.Convolution(net.relu1_2, num_output=32, pad=1, kernel_size=3, stride=2, **kwargs)
+        net.conv1_3_bn = L.BatchNorm(net.conv1_3, in_place=True, **bn_kwargs)
+        net.conv1_3_sb = L.Scale(net.conv1_3_bn, in_place=True, **sb_kwargs)
+    else:
+        name = 'pool1'
+        net.pool1 = L.Pooling(net.relu1_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
 
-    stride = 2
-    dilation = 1
-    if use_dilation_conv5:
-      stride = 1
-      dilation = 2
+    net.conv2_1 = L.Convolution(net[name], num_output=32, pad=1, kernel_size=3, **kwargs)
+    net.conv2_1_bn = L.BatchNorm(net.conv2_1, in_place=True, **bn_kwargs)
+    net.conv2_1_sb = L.Scale(net.conv2_1_bn, in_place=True, **sb_kwargs)
+    net.relu2_1 = L.ReLU(net.conv2_1, in_place=True)
 
-    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=stride, use_branch1=True, dilation=dilation)
-    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, dilation=dilation)
-    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, dilation=dilation)
+    net.conv2_2 = L.Convolution(net.relu2_1, num_output=32, pad=1, kernel_size=3, **kwargs)
+    net.conv2_2_bn = L.BatchNorm(net.conv2_2, in_place=True, **bn_kwargs)
+    net.conv2_2_sb = L.Scale(net.conv2_2_bn, in_place=True, **sb_kwargs)
+    net.relu2_2 = L.ReLU(net.conv2_2, in_place=True)
 
-    if use_pool5:
-      net.pool5 = L.Pooling(net.res5c, pool=P.Pooling.AVE, global_pooling=True)
+    if nopool:
+        name = 'conv2_3'
+        net[name] = L.Convolution(net.relu2_2, num_output=64, pad=1, kernel_size=3, stride=2, **kwargs)
+        net.conv2_3_bn = L.BatchNorm(net.conv2_3, in_place=True, **bn_kwargs)
+        net.conv2_3_sb = L.Scale(net.conv2_3_bn, in_place=True, **sb_kwargs)
+    else:
+        name = 'pool2'
+        net[name] = L.Pooling(net.relu2_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv3_1 = L.Convolution(net[name], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv3_1_bn = L.BatchNorm(net.conv3_1, in_place=True, **bn_kwargs)
+    net.conv3_1_sb = L.Scale(net.conv3_1_bn, in_place=True, **sb_kwargs)
+    net.relu3_1 = L.ReLU(net.conv3_1, in_place=True)
+    net.conv3_2 = L.Convolution(net.relu3_1, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv3_2_bn = L.BatchNorm(net.conv3_2, in_place=True, **bn_kwargs)
+    net.conv3_2_sb = L.Scale(net.conv3_2_bn, in_place=True, **sb_kwargs)
+    net.relu3_2 = L.ReLU(net.conv3_2, in_place=True)
+    net.conv3_3 = L.Convolution(net.relu3_2, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv3_3_bn = L.BatchNorm(net.conv3_3, in_place=True, **bn_kwargs)
+    net.conv3_3_sb = L.Scale(net.conv3_3_bn, in_place=True, **sb_kwargs)
+    net.relu3_3 = L.ReLU(net.conv3_3, in_place=True)
+
+    if nopool:
+        name = 'conv3_4'
+        net[name] = L.Convolution(net.relu3_3, num_output=64, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool3'
+        net[name] = L.Pooling(net.relu3_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv4_1 = L.Convolution(net[name], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv4_1_bn = L.BatchNorm(net.conv4_1, in_place=True, **bn_kwargs)
+    net.conv4_1_sb = L.Scale(net.conv4_1_bn, in_place=True, **sb_kwargs)
+    net.relu4_1 = L.ReLU(net.conv4_1, in_place=True)
+    net.conv4_2 = L.Convolution(net.relu4_1, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv4_2_bn = L.BatchNorm(net.conv4_2, in_place=True, **bn_kwargs)
+    net.conv4_2_sb = L.Scale(net.conv4_2_bn, in_place=True, **sb_kwargs)
+    net.relu4_2 = L.ReLU(net.conv4_2, in_place=True)
+    net.conv4_3 = L.Convolution(net.relu4_2, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv4_3_bn = L.BatchNorm(net.conv4_3, in_place=True, **bn_kwargs)
+    net.conv4_3_sb = L.Scale(net.conv4_3_bn, in_place=True, **sb_kwargs)
+    net.relu4_3 = L.ReLU(net.conv4_3, in_place=True)
+
+    if nopool:
+        name = 'conv4_4'
+        net[name] = L.Convolution(net.relu4_3, num_output=128, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool4'
+        net[name] = L.Pooling(net.relu4_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv5_1 = L.Convolution(net[name], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv5_1_bn = L.BatchNorm(net.conv5_1, in_place=True, **bn_kwargs)
+    net.conv5_1_sb = L.Scale(net.conv5_1_bn, in_place=True, **sb_kwargs)
+    net.relu5_1 = L.ReLU(net.conv5_1, in_place=True)
+    net.conv5_2 = L.Convolution(net.relu5_1, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv5_2_bn = L.BatchNorm(net.conv5_2, in_place=True, **bn_kwargs)
+    net.conv5_2_sb = L.Scale(net.conv5_2_bn, in_place=True, **sb_kwargs)
+    net.relu5_2 = L.ReLU(net.conv5_2, in_place=True)
+    net.conv5_3 = L.Convolution(net.relu5_2, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv5_3_bn = L.BatchNorm(net.conv5_3, in_place=True, **bn_kwargs)
+    net.conv5_3_sb = L.Scale(net.conv5_3_bn, in_place=True, **sb_kwargs)
+    net.relu5_3 = L.ReLU(net.conv5_3, in_place=True)
+
+    if need_fc:
+        if dilated:
+            if nopool:
+                name = 'conv5_4'
+                net[name] = L.Convolution(net.relu5_3, num_output=128, pad=1, kernel_size=3, stride=1, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5_3, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=1)
+        else:
+            if nopool:
+                name = 'conv5_4'
+                net[name] = L.Convolution(net.relu5_3, num_output=128, pad=1, kernel_size=3, stride=2, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+        if fully_conv:
+            if dilated:
+                if reduced:
+                    net.fc6 = L.Convolution(net[name], num_output=1024, pad=6, kernel_size=3, dilation=6, **kwargs)
+                    net.fc6_bn = L.BatchNorm(net.fc6, in_place=True, **bn_kwargs)
+                    net.fc6_sb = L.Scale(net.fc6_bn, in_place=True, **sb_kwargs)
+                else:
+                    net.fc6 = L.Convolution(net[name], num_output=2048, pad=6, kernel_size=7, dilation=2, **kwargs)
+            else:
+                if reduced:
+                    net.fc6 = L.Convolution(net[name], num_output=1024, pad=3, kernel_size=3, dilation=3, **kwargs)
+                    net.fc6_bn = L.BatchNorm(net.fc6, in_place=True, **bn_kwargs)
+                    net.fc6_sb = L.Scale(net.fc6_bn, in_place=True, **sb_kwargs)
+                else:
+                    net.fc6 = L.Convolution(net[name], num_output=2048, pad=3, kernel_size=7, **kwargs)
+
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+
+            if reduced:
+                net.fc7 = L.Convolution(net.relu6, num_output=1024, kernel_size=1, **kwargs)
+                net.fc7_bn = L.BatchNorm(net.fc7, in_place=True, **bn_kwargs)
+                net.fc7_sb = L.Scale(net.fc7_bn, in_place=True, **sb_kwargs)
+            else:
+                net.fc7 = L.Convolution(net.relu6, num_output=2048, kernel_size=1, **kwargs)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+        else:
+            net.fc6 = L.InnerProduct(net.pool5, num_output=2048)
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+            net.fc7 = L.InnerProduct(net.relu6, num_output=2048)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+
+    # Update freeze layers.
+    kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
+    layers = net.keys()
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
 
     return net
 
+def VGGNetBodyBNkernel1(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
 
-def ResNet152Body(net, from_layer, use_pool5=True, use_dilation_conv5=False):
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    # parameters for batchnorm layer.
+    bn_kwargs = {
+        'param': [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)],
+        'eps': 0.001,
+        }
+    # parameters for scale bias layer after batchnorm.
+
+    sb_kwargs = {
+          'bias_term': True,
+          'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=1, decay_mult=0)],
+          'filler': dict(type='constant', value=1.0),
+          'bias_filler': dict(type='constant', value=0.0),
+          }
+
+    assert from_layer in net.keys()
+    net.conv1_1 = L.Convolution(net[from_layer], num_output=64, pad=1, kernel_size=3, **kwargs)
+
+    net.conv1_1_bn = L.BatchNorm(net.conv1_1, in_place=True, **bn_kwargs)
+    net.conv1_1_sb = L.Scale(net.conv1_1_bn, in_place=True, **sb_kwargs)
+    net.relu1_1 = L.ReLU(net.conv1_1, in_place=True)
+
+    net.conv1_2 = L.Convolution(net.relu1_1, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv1_2_bn = L.BatchNorm(net.conv1_2, in_place=True, **bn_kwargs)
+    net.conv1_2_sb = L.Scale(net.conv1_2_bn, in_place=True, **sb_kwargs)
+
+    net.relu1_2 = L.ReLU(net.conv1_2, in_place=True)
+
+    if nopool:
+        name = 'conv1_3'
+        net[name] = L.Convolution(net.relu1_2, num_output=64, pad=1, kernel_size=3, stride=2, **kwargs)
+        net.conv1_3_bn = L.BatchNorm(net.conv1_3, in_place=True, **bn_kwargs)
+        net.conv1_3_sb = L.Scale(net.conv1_3_bn, in_place=True, **sb_kwargs)
+    else:
+        name = 'pool1'
+        net.pool1 = L.Pooling(net.relu1_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv2_1 = L.Convolution(net[name], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv2_1_bn = L.BatchNorm(net.conv2_1, in_place=True, **bn_kwargs)
+    net.conv2_1_sb = L.Scale(net.conv2_1_bn, in_place=True, **sb_kwargs)
+    net.relu2_1 = L.ReLU(net.conv2_1, in_place=True)
+
+    net.conv2_2 = L.Convolution(net.relu2_1, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.conv2_2_bn = L.BatchNorm(net.conv2_2, in_place=True, **bn_kwargs)
+    net.conv2_2_sb = L.Scale(net.conv2_2_bn, in_place=True, **sb_kwargs)
+    net.relu2_2 = L.ReLU(net.conv2_2, in_place=True)
+
+    if nopool:
+        name = 'conv2_3'
+        net[name] = L.Convolution(net.relu2_2, num_output=128, pad=1, kernel_size=3, stride=2, **kwargs)
+        net.conv2_3_bn = L.BatchNorm(net.conv2_3, in_place=True, **bn_kwargs)
+        net.conv2_3_sb = L.Scale(net.conv2_3_bn, in_place=True, **sb_kwargs)
+    else:
+        name = 'pool2'
+        net[name] = L.Pooling(net.relu2_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv3_1 = L.Convolution(net[name], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv3_1_bn = L.BatchNorm(net.conv3_1, in_place=True, **bn_kwargs)
+    net.conv3_1_sb = L.Scale(net.conv3_1_bn, in_place=True, **sb_kwargs)
+    net.relu3_1 = L.ReLU(net.conv3_1, in_place=True)
+    net.conv3_2 = L.Convolution(net.relu3_1, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv3_2_bn = L.BatchNorm(net.conv3_2, in_place=True, **bn_kwargs)
+    net.conv3_2_sb = L.Scale(net.conv3_2_bn, in_place=True, **sb_kwargs)
+    net.relu3_2 = L.ReLU(net.conv3_2, in_place=True)
+    net.conv3_3 = L.Convolution(net.relu3_2, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.conv3_3_bn = L.BatchNorm(net.conv3_3, in_place=True, **bn_kwargs)
+    net.conv3_3_sb = L.Scale(net.conv3_3_bn, in_place=True, **sb_kwargs)
+    net.relu3_3 = L.ReLU(net.conv3_3, in_place=True)
+
+    if nopool:
+        name = 'conv3_4'
+        net[name] = L.Convolution(net.relu3_3, num_output=128, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool3'
+        net[name] = L.Pooling(net.relu3_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv4_1 = L.Convolution(net[name], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv4_1_bn = L.BatchNorm(net.conv4_1, in_place=True, **bn_kwargs)
+    net.conv4_1_sb = L.Scale(net.conv4_1_bn, in_place=True, **sb_kwargs)
+    net.relu4_1 = L.ReLU(net.conv4_1, in_place=True)
+    net.conv4_2 = L.Convolution(net.relu4_1, num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv4_2_bn = L.BatchNorm(net.conv4_2, in_place=True, **bn_kwargs)
+    net.conv4_2_sb = L.Scale(net.conv4_2_bn, in_place=True, **sb_kwargs)
+    net.relu4_2 = L.ReLU(net.conv4_2, in_place=True)
+    net.conv4_3 = L.Convolution(net.relu4_2, num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv4_3_bn = L.BatchNorm(net.conv4_3, in_place=True, **bn_kwargs)
+    net.conv4_3_sb = L.Scale(net.conv4_3_bn, in_place=True, **sb_kwargs)
+    net.relu4_3 = L.ReLU(net.conv4_3, in_place=True)
+
+    if nopool:
+        name = 'conv4_4'
+        net[name] = L.Convolution(net.relu4_3, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+    else:
+        name = 'pool4'
+        net[name] = L.Pooling(net.relu4_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv5_1 = L.Convolution(net[name], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv5_1_bn = L.BatchNorm(net.conv5_1, in_place=True, **bn_kwargs)
+    net.conv5_1_sb = L.Scale(net.conv5_1_bn, in_place=True, **sb_kwargs)
+    net.relu5_1 = L.ReLU(net.conv5_1, in_place=True)
+    net.conv5_2 = L.Convolution(net.relu5_1, num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv5_2_bn = L.BatchNorm(net.conv5_2, in_place=True, **bn_kwargs)
+    net.conv5_2_sb = L.Scale(net.conv5_2_bn, in_place=True, **sb_kwargs)
+    net.relu5_2 = L.ReLU(net.conv5_2, in_place=True)
+    net.conv5_3 = L.Convolution(net.relu5_2, num_output=256, pad=1, kernel_size=3, **kwargs)
+    net.conv5_3_bn = L.BatchNorm(net.conv5_3, in_place=True, **bn_kwargs)
+    net.conv5_3_sb = L.Scale(net.conv5_3_bn, in_place=True, **sb_kwargs)
+    net.relu5_3 = L.ReLU(net.conv5_3, in_place=True)
+
+    if need_fc:
+        if dilated:
+            if nopool:
+                name = 'conv5_4'
+                net[name] = L.Convolution(net.relu5_3, num_output=256, pad=1, kernel_size=3, stride=1, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5_3, pool=P.Pooling.MAX, pad=1, kernel_size=3, stride=1)
+        else:
+            if nopool:
+                name = 'conv5_4'
+                net[name] = L.Convolution(net.relu5_3, num_output=256, pad=1, kernel_size=3, stride=2, **kwargs)
+            else:
+                name = 'pool5'
+                net[name] = L.Pooling(net.relu5_3, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+        if fully_conv:
+            if dilated:
+                if reduced:
+                    net.fc6 = L.Convolution(net[name], num_output=1024, pad=6, kernel_size=1, dilation=6, **kwargs)
+                    net.fc6_bn = L.BatchNorm(net.fc6, in_place=True, **bn_kwargs)
+                    net.fc6_sb = L.Scale(net.fc6_bn, in_place=True, **sb_kwargs)
+                else:
+                    net.fc6 = L.Convolution(net[name], num_output=2048, pad=6, kernel_size=7, dilation=2, **kwargs)
+            else:
+                if reduced:
+                    net.fc6 = L.Convolution(net[name], num_output=1024, pad=3, kernel_size=1, dilation=3, **kwargs)
+                    net.fc6_bn = L.BatchNorm(net.fc6, in_place=True, **bn_kwargs)
+                    net.fc6_sb = L.Scale(net.fc6_bn, in_place=True, **sb_kwargs)
+                else:
+                    net.fc6 = L.Convolution(net[name], num_output=2048, pad=3, kernel_size=7, **kwargs)
+
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+
+            if reduced:
+                net.fc7 = L.Convolution(net.relu6, num_output=1024, kernel_size=1, **kwargs)
+                net.fc7_bn = L.BatchNorm(net.fc7, in_place=True, **bn_kwargs)
+                net.fc7_sb = L.Scale(net.fc7_bn, in_place=True, **sb_kwargs)
+            else:
+                net.fc7 = L.Convolution(net.relu6, num_output=2048, kernel_size=1, **kwargs)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+        else:
+            net.fc6 = L.InnerProduct(net.pool5, num_output=2048)
+            net.relu6 = L.ReLU(net.fc6, in_place=True)
+            if dropout:
+                net.drop6 = L.Dropout(net.relu6, dropout_ratio=0.5, in_place=True)
+            net.fc7 = L.InnerProduct(net.relu6, num_output=2048)
+            net.relu7 = L.ReLU(net.fc7, in_place=True)
+            if dropout:
+                net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
+
+    # Update freeze layers.
+    kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
+    layers = net.keys()
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
+
+    return net
+
+def ResNet152Body(net, from_layer, use_pool5=True):
     conv_prefix = ''
     conv_postfix = ''
     bn_prefix = 'bn_'
@@ -404,20 +724,15 @@ def ResNet152Body(net, from_layer, use_pool5=True, use_dilation_conv5=False):
       ResBody(net, from_layer, block_name, out2a=256, out2b=256, out2c=1024, stride=1, use_branch1=False)
       from_layer = 'res{}'.format(block_name)
 
-    stride = 2
-    dilation = 1
-    if use_dilation_conv5:
-      stride = 1
-      dilation = 2
-
-    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=stride, use_branch1=True, dilation=dilation)
-    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, dilation=dilation)
-    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False, dilation=dilation)
+    ResBody(net, from_layer, '5a', out2a=512, out2b=512, out2c=2048, stride=2, use_branch1=True)
+    ResBody(net, 'res5a', '5b', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False)
+    ResBody(net, 'res5b', '5c', out2a=512, out2b=512, out2c=2048, stride=1, use_branch1=False)
 
     if use_pool5:
       net.pool5 = L.Pooling(net.res5c, pool=P.Pooling.AVE, global_pooling=True)
 
     return net
+
 
 
 def InceptionV3Body(net, from_layer, output_pred=False):
@@ -776,3 +1091,362 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
         mbox_layers.append(net[name])
 
     return mbox_layers
+
+
+def SqueezeNetBody(net, from_layer):
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+
+    assert from_layer in net.keys()
+    net.conv1 = L.Convolution(net[from_layer], num_output=64, pad=0, kernel_size=3,stride=2, **kwargs)
+    net.relu_conv1 = L.ReLU(net.conv1, in_place=True)
+
+    net.pool1 = L.Pooling(net.relu_conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire2
+    net['fire2/squeeze1x1'] = L.Convolution(net.pool1, num_output=16, pad=0, kernel_size=1, **kwargs)
+    net['fire2/relu_squeeze1x1'] = L.ReLU(net['fire2/squeeze1x1'], in_place=True)
+    expand_fire2 = []
+    net['fire2/expand1x1'] = L.Convolution(net['fire2/relu_squeeze1x1'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire2/relu_expand1x1'] =  L.ReLU(net['fire2/expand1x1'], in_place=True)
+    net['fire2/expand3x3'] = L.Convolution(net['fire2/relu_squeeze1x1'], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net['fire2/relu_expand3x3'] =  L.ReLU(net['fire2/expand3x3'], in_place=True)
+    expand_fire2.append(net['fire2/relu_expand1x1'])
+    expand_fire2.append(net['fire2/relu_expand3x3'])
+    net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
+    #fire3
+    net['fire3/squeeze1x1'] = L.Convolution(net['fire2/concat'], num_output=16, pad=0, kernel_size=1, **kwargs)
+    net['fire3/relu_squeeze1x1'] = L.ReLU(net['fire3/squeeze1x1'], in_place=True)
+    expand_fire3 = []
+    net['fire3/expand1x1'] = L.Convolution(net['fire3/relu_squeeze1x1'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire3/relu_expand1x1'] =  L.ReLU(net['fire3/expand1x1'], in_place=True)
+    net['fire3/expand3x3'] = L.Convolution(net['fire3/relu_squeeze1x1'], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net['fire3/relu_expand3x3'] =  L.ReLU(net['fire3/expand3x3'], in_place=True)
+    expand_fire3.append(net['fire3/relu_expand1x1'])
+    expand_fire3.append(net['fire3/relu_expand3x3'])
+    net['fire3/concat'] = L.Concat(*expand_fire3, axis=1)
+    #fire4
+    net['fire4/squeeze1x1'] = L.Convolution(net['fire3/concat'], num_output=32, pad=0, kernel_size=1, **kwargs)
+    net['fire4/relu_squeeze1x1'] = L.ReLU(net['fire4/squeeze1x1'], in_place=True)
+    expand_fire4 = []
+    net['fire4/expand1x1'] = L.Convolution(net['fire4/relu_squeeze1x1'], num_output=128, pad=0, kernel_size=1, **kwargs)
+    net['fire4/relu_expand1x1'] =  L.ReLU(net['fire4/expand1x1'], in_place=True)
+    net['fire4/expand3x3'] = L.Convolution(net['fire4/relu_squeeze1x1'], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net['fire4/relu_expand3x3'] =  L.ReLU(net['fire4/expand3x3'], in_place=True)
+    expand_fire4.append(net['fire4/relu_expand1x1'])
+    expand_fire4.append(net['fire4/relu_expand3x3'])
+    net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
+    #pool4
+    net.pool4 = L.Pooling(net['fire4/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire5
+    net['fire5/squeeze1x1'] = L.Convolution(net.pool4, num_output=32, pad=0, kernel_size=1, **kwargs)
+    net['fire5/relu_squeeze1x1'] = L.ReLU(net['fire5/squeeze1x1'], in_place=True)
+    expand_fire5 = []
+    net['fire5/expand1x1'] = L.Convolution(net['fire5/relu_squeeze1x1'], num_output=128, pad=0, kernel_size=1, **kwargs)
+    net['fire5/relu_expand1x1'] =  L.ReLU(net['fire5/expand1x1'], in_place=True)
+    net['fire5/expand3x3'] = L.Convolution(net['fire5/relu_squeeze1x1'], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net['fire5/relu_expand3x3'] =  L.ReLU(net['fire5/expand3x3'], in_place=True)
+    expand_fire5.append(net['fire5/relu_expand1x1'])
+    expand_fire5.append(net['fire5/relu_expand3x3'])
+    net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
+    #fire6
+    net['fire6/squeeze1x1'] = L.Convolution(net['fire5/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
+    net['fire6/relu_squeeze1x1'] = L.ReLU(net['fire6/squeeze1x1'], in_place=True)
+    expand_fire6 = []
+    net['fire6/expand1x1'] = L.Convolution(net['fire6/relu_squeeze1x1'], num_output=192, pad=0, kernel_size=1, **kwargs)
+    net['fire6/relu_expand1x1'] =  L.ReLU(net['fire6/expand1x1'], in_place=True)
+    net['fire6/expand3x3'] = L.Convolution(net['fire6/relu_squeeze1x1'], num_output=192, pad=1, kernel_size=3, **kwargs)
+    net['fire6/relu_expand3x3'] =  L.ReLU(net['fire6/expand3x3'], in_place=True)
+    expand_fire6.append(net['fire6/relu_expand1x1'])
+    expand_fire6.append(net['fire6/relu_expand3x3'])
+    net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
+    #fire7
+    net['fire7/squeeze1x1'] = L.Convolution(net['fire6/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
+    net['fire7/relu_squeeze1x1'] = L.ReLU(net['fire7/squeeze1x1'], in_place=True)
+    expand_fire7 = []
+    net['fire7/expand1x1'] = L.Convolution(net['fire7/relu_squeeze1x1'], num_output=192, pad=0, kernel_size=1, **kwargs)
+    net['fire7/relu_expand1x1'] =  L.ReLU(net['fire7/expand1x1'], in_place=True)
+    net['fire7/expand3x3'] = L.Convolution(net['fire7/relu_squeeze1x1'], num_output=192, pad=1, kernel_size=3, **kwargs)
+    net['fire7/relu_expand3x3'] =  L.ReLU(net['fire7/expand3x3'], in_place=True)
+    expand_fire7.append(net['fire7/relu_expand1x1'])
+    expand_fire7.append(net['fire7/relu_expand3x3'])
+    net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
+    #fire8
+    net['fire8/squeeze1x1'] = L.Convolution(net['fire7/concat'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire8/relu_squeeze1x1'] = L.ReLU(net['fire8/squeeze1x1'], in_place=True)
+    expand_fire8 = []
+    net['fire8/expand1x1'] = L.Convolution(net['fire8/relu_squeeze1x1'], num_output=256, pad=0, kernel_size=1, **kwargs)
+    net['fire8/relu_expand1x1'] =  L.ReLU(net['fire8/expand1x1'], in_place=True)
+    net['fire8/expand3x3'] = L.Convolution(net['fire8/relu_squeeze1x1'], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net['fire8/relu_expand3x3'] =  L.ReLU(net['fire8/expand3x3'], in_place=True)
+    expand_fire8.append(net['fire8/relu_expand1x1'])
+    expand_fire8.append(net['fire8/relu_expand3x3'])
+    net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)   
+    #pool8
+    net.pool8 = L.Pooling(net['fire8/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire9
+    net['fire9/squeeze1x1'] = L.Convolution(net.pool8, num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire9/relu_squeeze1x1'] = L.ReLU(net['fire9/squeeze1x1'], in_place=True)
+    expand_fire9 = []
+    net['fire9/expand1x1'] = L.Convolution(net['fire9/relu_squeeze1x1'], num_output=256, pad=0, kernel_size=1, **kwargs)
+    net['fire9/relu_expand1x1'] =  L.ReLU(net['fire9/expand1x1'], in_place=True)
+    net['fire9/expand3x3'] = L.Convolution(net['fire9/relu_squeeze1x1'], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net['fire9/relu_expand3x3'] =  L.ReLU(net['fire9/expand3x3'], in_place=True)
+    expand_fire9.append(net['fire9/relu_expand1x1'])
+    expand_fire9.append(net['fire9/relu_expand3x3'])
+    net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)  
+    #drop9
+    net.drop9 = L.Dropout(net['fire9/concat'], dropout_ratio=0.5, in_place=True)
+    #conv_final
+    kwargsGS = {
+        'param': dict(lr_mult=1, decay_mult=1),
+        'weight_filler': dict(type='gaussian', mean=0, std=0.01),
+        'bias_term': True,
+        }
+    net.conv10 = L.Convolution(net.drop9, num_output=1000, pad=0, kernel_size=1, **kwargsGS)
+    net.relu_conv10 = L.ReLU(net.conv10, in_place=True)
+    #global pooling
+    net.pool10 = L.Pooling(net.relu_conv10, pool=P.Pooling.AVE, global_pooling=True)
+
+    return net
+
+def SqueezeNetBodyDSD(net, from_layer):
+    kwargs = {
+            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
+            'weight_filler': dict(type='xavier'),
+            'bias_filler': dict(type='constant', value=0)}
+    assert from_layer in net.keys()
+    net.conv1_1 = L.Convolution(net[from_layer], num_output=64, pad=1, kernel_size=3, **kwargs)
+
+    net.relu1_1 = L.ReLU(net.conv1_1, in_place=True)
+    net.conv1_2 = L.Convolution(net.relu1_1, num_output=64, pad=1, kernel_size=3, **kwargs)
+    net.relu1_2 = L.ReLU(net.conv1_2, in_place=True)
+
+    name = 'pool1'
+    net.pool1 = L.Pooling(net.relu1_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    net.conv2_1 = L.Convolution(net[name], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.relu2_1 = L.ReLU(net.conv2_1, in_place=True)
+    net.conv2_2 = L.Convolution(net.relu2_1, num_output=128, pad=1, kernel_size=3, **kwargs)
+    net.relu2_2 = L.ReLU(net.conv2_2, in_place=True)
+
+    comment = '''assert from_layer in net.keys()
+    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=0, kernel_size=7,stride=2, **kwargs)
+    net.relu_conv1 = L.ReLU(net.conv1, in_place=True)
+
+    net.pool1 = L.Pooling(net.relu_conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire2
+    net['fire2/conv1x1_1'] = L.Convolution(net.pool1, num_output=16, pad=0, kernel_size=1, **kwargs)
+    net['fire2/relu_conv1x1_1'] = L.ReLU(net['fire2/conv1x1_1'], in_place=True)
+    expand_fire2 = []
+    net['fire2/conv1x1_2'] = L.Convolution(net['fire2/relu_conv1x1_1'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire2/relu_conv1x1_2'] =  L.ReLU(net['fire2/conv1x1_2'], in_place=True)
+    net['fire2/conv3x3_2'] = L.Convolution(net['fire2/relu_conv1x1_1'], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net['fire2/relu_conv3x3_2'] =  L.ReLU(net['fire2/conv3x3_2'], in_place=True)
+    expand_fire2.append(net['fire2/relu_conv1x1_2'])
+    expand_fire2.append(net['fire2/relu_conv3x3_2'])
+    net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
+    '''#fire3
+    net['fire3/conv1x1_1'] = L.Convolution(net.relu2_2, num_output=16, pad=0, kernel_size=1, **kwargs)
+    net['fire3/relu_conv1x1_1'] = L.ReLU(net['fire3/conv1x1_1'], in_place=True)
+    expand_fire3 = []
+    net['fire3/conv1x1_2'] = L.Convolution(net['fire3/relu_conv1x1_1'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire3/relu_conv1x1_2'] =  L.ReLU(net['fire3/conv1x1_2'], in_place=True)
+    net['fire3/conv3x3_2'] = L.Convolution(net['fire3/relu_conv1x1_1'], num_output=64, pad=1, kernel_size=3, **kwargs)
+    net['fire3/relu_conv3x3_2'] =  L.ReLU(net['fire3/conv3x3_2'], in_place=True)
+    expand_fire3.append(net['fire3/relu_conv1x1_2'])
+    expand_fire3.append(net['fire3/relu_conv3x3_2'])
+    net['fire3/concat'] = L.Concat(*expand_fire3, axis=1)
+    #fire4
+    net['fire4/conv1x1_1'] = L.Convolution(net['fire3/concat'], num_output=32, pad=0, kernel_size=1, **kwargs)
+    net['fire4/relu_conv1x1_1'] = L.ReLU(net['fire4/conv1x1_1'], in_place=True)
+    expand_fire4 = []
+    net['fire4/conv1x1_2'] = L.Convolution(net['fire4/relu_conv1x1_1'], num_output=128, pad=0, kernel_size=1, **kwargs)
+    net['fire4/relu_conv1x1_2'] =  L.ReLU(net['fire4/conv1x1_2'], in_place=True)
+    net['fire4/conv3x3_2'] = L.Convolution(net['fire4/relu_conv1x1_1'], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net['fire4/relu_conv3x3_2'] =  L.ReLU(net['fire4/conv3x3_2'], in_place=True)
+    expand_fire4.append(net['fire4/relu_conv1x1_2'])
+    expand_fire4.append(net['fire4/relu_conv3x3_2'])
+    net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
+    #pool4
+    net.pool4 = L.Pooling(net['fire4/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire5
+    net['fire5/conv1x1_1'] = L.Convolution(net.pool4, num_output=32, pad=0, kernel_size=1, **kwargs)
+    net['fire5/relu_conv1x1_1'] = L.ReLU(net['fire5/conv1x1_1'], in_place=True)
+    expand_fire5 = []
+    net['fire5/conv1x1_2'] = L.Convolution(net['fire5/relu_conv1x1_1'], num_output=128, pad=0, kernel_size=1, **kwargs)
+    net['fire5/relu_conv1x1_2'] =  L.ReLU(net['fire5/conv1x1_2'], in_place=True)
+    net['fire5/conv3x3_2'] = L.Convolution(net['fire5/relu_conv1x1_1'], num_output=128, pad=1, kernel_size=3, **kwargs)
+    net['fire5/relu_conv3x3_2'] =  L.ReLU(net['fire5/conv3x3_2'], in_place=True)
+    expand_fire5.append(net['fire5/relu_conv1x1_2'])
+    expand_fire5.append(net['fire5/relu_conv3x3_2'])
+    net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
+    #fire6
+    net['fire6/conv1x1_1'] = L.Convolution(net['fire5/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
+    net['fire6/relu_conv1x1_1'] = L.ReLU(net['fire6/conv1x1_1'], in_place=True)
+    expand_fire6 = []
+    net['fire6/conv1x1_2'] = L.Convolution(net['fire6/relu_conv1x1_1'], num_output=192, pad=0, kernel_size=1, **kwargs)
+    net['fire6/relu_conv1x1_2'] =  L.ReLU(net['fire6/conv1x1_2'], in_place=True)
+    net['fire6/conv3x3_2'] = L.Convolution(net['fire6/relu_conv1x1_1'], num_output=192, pad=1, kernel_size=3, **kwargs)
+    net['fire6/relu_conv3x3_2'] =  L.ReLU(net['fire6/conv3x3_2'], in_place=True)
+    expand_fire6.append(net['fire6/relu_conv1x1_2'])
+    expand_fire6.append(net['fire6/relu_conv3x3_2'])
+    net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
+    #fire7
+    net['fire7/conv1x1_1'] = L.Convolution(net['fire6/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
+    net['fire7/relu_conv1x1_1'] = L.ReLU(net['fire7/conv1x1_1'], in_place=True)
+    expand_fire7 = []
+    net['fire7/conv1x1_2'] = L.Convolution(net['fire7/relu_conv1x1_1'], num_output=192, pad=0, kernel_size=1, **kwargs)
+    net['fire7/relu_conv1x1_2'] =  L.ReLU(net['fire7/conv1x1_2'], in_place=True)
+    net['fire7/conv3x3_2'] = L.Convolution(net['fire7/relu_conv1x1_1'], num_output=192, pad=1, kernel_size=3, **kwargs)
+    net['fire7/relu_conv3x3_2'] =  L.ReLU(net['fire7/conv3x3_2'], in_place=True)
+    expand_fire7.append(net['fire7/relu_conv1x1_2'])
+    expand_fire7.append(net['fire7/relu_conv3x3_2'])
+    net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
+    #fire8
+    net['fire8/conv1x1_1'] = L.Convolution(net['fire7/concat'], num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire8/relu_conv1x1_1'] = L.ReLU(net['fire8/conv1x1_1'], in_place=True)
+    expand_fire8 = []
+    expand_fire8_conv = []
+    net['fire8/conv1x1_2'] = L.Convolution(net['fire8/relu_conv1x1_1'], num_output=256, pad=0, kernel_size=1, **kwargs)
+    net['fire8/relu_conv1x1_2'] =  L.ReLU(net['fire8/conv1x1_2'], in_place=True)
+    net['fire8/conv3x3_2'] = L.Convolution(net['fire8/relu_conv1x1_1'], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net['fire8/relu_conv3x3_2'] =  L.ReLU(net['fire8/conv3x3_2'], in_place=True)
+    expand_fire8.append(net['fire8/relu_conv1x1_2'])
+    expand_fire8.append(net['fire8/relu_conv3x3_2'])
+
+    expand_fire8_conv.append(net['fire8/conv1x1_2'])
+    expand_fire8_conv.append(net['fire8/conv3x3_2'])
+
+    net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)
+    net['fire8/conv'] = L.Concat(*expand_fire8_conv, axis=1)   
+    #pool8
+    net.pool8 = L.Pooling(net['fire8/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    #fire9
+    net['fire9/conv1x1_1'] = L.Convolution(net.pool8, num_output=64, pad=0, kernel_size=1, **kwargs)
+    net['fire9/relu_conv1x1_1'] = L.ReLU(net['fire9/conv1x1_1'], in_place=True)
+    expand_fire9 = []
+    net['fire9/conv1x1_2'] = L.Convolution(net['fire9/relu_conv1x1_1'], num_output=256, pad=0, kernel_size=1, **kwargs)
+    net['fire9/relu_conv1x1_2'] =  L.ReLU(net['fire9/conv1x1_2'], in_place=True)
+    net['fire9/conv3x3_2'] = L.Convolution(net['fire9/relu_conv1x1_1'], num_output=256, pad=1, kernel_size=3, **kwargs)
+    net['fire9/relu_conv3x3_2'] =  L.ReLU(net['fire9/conv3x3_2'], in_place=True)
+    expand_fire9.append(net['fire9/relu_conv1x1_2'])
+    expand_fire9.append(net['fire9/relu_conv3x3_2'])
+    net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)  
+    #drop9
+    net.drop9 = L.Dropout(net['fire9/concat'], dropout_ratio=0.5, in_place=True)
+    #conv_final
+    kwargsGS = {
+        'param': dict(lr_mult=1, decay_mult=1),
+        'weight_filler': dict(type='gaussian', mean=0, std=0.01),
+        'bias_term': True,
+        }
+    net.conv_final = L.Convolution(net.drop9, num_output=1000, pad=1, kernel_size=1, **kwargsGS)
+    net.relu_conv_final = L.ReLU(net.conv_final, in_place=True)
+    #global pooling
+    #net.pool_final = L.Pooling(net.relu_conv_final, pool=P.Pooling.AVE, global_pooling=True)
+
+    return net
+
+def HourGlass(net, from_layer, name, n, In, out, final_relu=False, freeze=True):
+    use_branch1 = (In!=out)
+    ResBody(net, from_layer, '{}_up1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=use_branch1, freeze=freeze)
+    ResBody(net, 'res{}_up1'.format(name), '{}_up2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, 'res{}_up2'.format(name), '{}_up4'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=True, freeze=freeze)
+
+    net['{}_pool1'.format(name)] = L.Pooling(net[from_layer], pool=P.Pooling.MAX, kernel_size=2, stride=2)
+    ResBody(net, '{}_pool1'.format(name), '{}_low1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=use_branch1, freeze=freeze)
+    ResBody(net, 'res{}_low1'.format(name), '{}_low2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, 'res{}_low2'.format(name), '{}_low5'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
+
+    if n > 1:
+        HourGlass(net,'res{}_low5'.format(name), '{}_low6'.format(name), n-1, 256, out, freeze=freeze)
+        layer_name = '{}_low6'.format(name)
+    else:
+        ResBody(net, 'res{}_low5'.format(name), '{}_low6'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=True, freeze=freeze)
+        layer_name = 'res{}_low6'.format(name)
+    ResBody(net, layer_name, '{}_low7'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=False, freeze=freeze)
+    
+    factor = 2
+    kernel = 2 * factor - factor % 2
+    stride = factor
+    pad = int(math.ceil((factor - 1) / 2.))
+    net['{}_up5'.format(name)] = L.Deconvolution(net['res{}_low7'.format(name)],
+        convolution_param=dict(num_output=out, kernel_size=kernel, stride=stride, pad=pad,
+            bias_term=False, weight_filler=dict(type="bilinear")),
+        param=[dict(lr_mult=0)])
+
+    net[name] = L.Eltwise(net['res{}_up4'.format(name)], net['{}_up5'.format(name)])
+    if final_relu:
+      relu_name = '{}_relu'.format(res_name)
+      net[relu_name] = L.ReLU(net[res_name], in_place=True)
+
+def HGStacked(net, from_layer, freeze=True):
+
+    conv_prefix = ''
+    conv_postfix = ''
+    bn_prefix = 'bn_'
+    bn_postfix = ''
+    scale_prefix = 'scale_'
+    scale_postfix = ''
+    ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=7, pad=3, stride=2,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+
+    ResBody(net, 'conv1', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze)
+
+    net.pool1 = L.Pooling(net.res1, pool=P.Pooling.MAX, kernel_size=2, stride=2)
+
+    ResBody(net, 'pool1', '4', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, 'res4', '5', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, 'res5', '6', out2a=128, out2b=128, out2c=256, stride=1, use_branch1=True, freeze=freeze)
+
+    HourGlass(net, 'res6', 'hg1', n=4, In=256, out=512, freeze=freeze)
+
+    ConvBNLayer(net, 'hg1', 'linear1', use_bn=True, use_relu=True,
+        num_output=512, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    ConvBNLayer(net, 'linear1', 'linear2', use_bn=True, use_relu=True,
+        num_output=256, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    ConvBNLayer(net, 'linear2', 'out_1', use_bn=False, use_relu=True, use_scale=False,
+        num_output=256+128, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    concat = []
+    concat.append(net.pool1)
+    concat.append(net.linear2)
+    net.concat1 = L.Concat(*concat, axis=1)
+    ConvBNLayer(net, 'concat1', 'concat1_CN', use_bn=False, use_relu=True, use_scale=False,
+        num_output=256+128, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    net.int1 = L.Eltwise(net.concat1_CN, net['out_1'])
+
+    HourGlass(net, 'int1', 'hg2', n=4, In=384, out=512, freeze=freeze)
+    ConvBNLayer(net, 'hg2', 'linear3', use_bn=True, use_relu=True,
+        num_output=512, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    ConvBNLayer(net, 'linear3', 'linear4', use_bn=True, use_relu=True,
+        num_output=512, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    ConvBNLayer(net, 'linear4', 'output', use_bn=False, use_relu=True, use_scale=False,
+        num_output=16, kernel_size=1, pad=0, stride=1,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+
+    return net

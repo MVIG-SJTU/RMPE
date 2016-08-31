@@ -1075,6 +1075,7 @@ message HeatmapDataParameter {
   optional bool dont_flip_first = 1016 [ default = true ];
   optional float angle_max = 1017 [ default = 0 ];  
   optional bool flip_joint_labels = 1018 [ default = true ];
+  optional bool flip_randomly = 1019 [ default = false ];
 }
 
 // Message that stores parameters used by HDF5DataLayer

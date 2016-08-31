@@ -297,6 +297,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     const float angle_max = heatmap_data_param.angle_max();
     const bool dont_flip_first = heatmap_data_param.dont_flip_first();
     const bool flip_joint_labels = heatmap_data_param.flip_joint_labels();
+    const bool flip_randomly = heatmap_data_param.flip_randomly();
     const int multfact = heatmap_data_param.multfact();
     const bool segmentation = heatmap_data_param.segmentation();
     const int size = heatmap_data_param.cropsize();
@@ -464,36 +465,39 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                 DLOG(INFO) << "random crop sampling";
 
                 // horizontal flip
-                if (rand() % 2)
+                if(flip_randomly)
                 {
-                    // flip
-                    cv::flip(img, img, 1);
-
-                    if (visualise)
-                        cv::flip(img_vis, img_vis, 1);
-
-                    // "flip" annotation coordinates
-                    for (int i = 0; i < label_num_channels; i += 2)
-                        cur_label_aug[i] = (float)width / (float)multfact - cur_label_aug[i];
-
-                    // "flip" annotation joint numbers
-                    // assumes i=0,1 are for head, and i=2,3 left wrist, i=4,5 right wrist etc
-                    // where coordinates are (x,y)
-                    if (flip_joint_labels)
-                    {
-                        float tmp_x, tmp_y;
-                        for (int i = flip_start_ind; i < label_num_channels; i += 4)
-                        {
-                            CHECK_LT(i + 3, label_num_channels);
-                            tmp_x = cur_label_aug[i];
-                            tmp_y = cur_label_aug[i + 1];
-                            cur_label_aug[i] = cur_label_aug[i + 2];
-                            cur_label_aug[i + 1] = cur_label_aug[i + 3];
-                            cur_label_aug[i + 2] = tmp_x;
-                            cur_label_aug[i + 3] = tmp_y;
-                        }
+                                if (rand() % 2)
+                                {
+                                    // flip
+                                    cv::flip(img, img, 1);
+                
+                                    if (visualise)
+                                        cv::flip(img_vis, img_vis, 1);
+                
+                                    // "flip" annotation coordinates
+                                    for (int i = 0; i < label_num_channels; i += 2)
+                                        cur_label_aug[i] = (float)width / (float)multfact - cur_label_aug[i];
+                
+                                    // "flip" annotation joint numbers
+                                    // assumes i=0,1 are for head, and i=2,3 left wrist, i=4,5 right wrist etc
+                                    // where coordinates are (x,y)
+                                    if (flip_joint_labels)
+                                    {
+                                        float tmp_x, tmp_y;
+                                        for (int i = flip_start_ind; i < label_num_channels; i += 4)
+                                        {
+                                            CHECK_LT(i + 3, label_num_channels);
+                                            tmp_x = cur_label_aug[i];
+                                            tmp_y = cur_label_aug[i + 1];
+                                            cur_label_aug[i] = cur_label_aug[i + 2];
+                                            cur_label_aug[i + 1] = cur_label_aug[i + 3];
+                                            cur_label_aug[i + 2] = tmp_x;
+                                            cur_label_aug[i + 3] = tmp_y;
+                                        }
+                                    }
+                                }
                     }
-                }
 
                 // left-top coordinates of the crop [0;x_border] x [0;y_border]
                 int x0 = 0, y0 = 0;

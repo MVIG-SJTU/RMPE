@@ -79,6 +79,7 @@ train_heatmap_data_param = {
     'dont_flip_first': True,
     'angle_max': 40,
     'multfact': 1,  # set to 282 if using preprocessed data from website
+    'flip_randomly' : False,
   }
 test_heatmap_data_param = {
     'source': test_data,
@@ -95,6 +96,7 @@ test_heatmap_data_param = {
     'dont_flip_first': True,
     'angle_max': 40,
     'multfact': 1,  # set to 282 if using preprocessed data from website
+    'flip_randomly' : False,
   }
 train_transform_param = {
     'mirror' : 0,

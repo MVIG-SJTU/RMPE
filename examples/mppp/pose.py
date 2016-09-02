@@ -49,16 +49,16 @@ caffe_root = os.getcwd()
 run_soon = True
 # Set true if you want to load from most recently saved snapshot.
 # Otherwise, we will load from the pretrain_model defined below.
-resume_training = True
+resume_training = False
 # If true, Remove old model files.
 remove_old_models = False
 
 # The database file for training data. Created by data/VOC0712/create_data.sh
-train_data = "data/MPII/trainval.txt"
+train_data = "data/MPII/train.txt"
 # The database file for testing data. Created by data/VOC0712/create_data.sh
-test_data = "data/MPII/test.txt"
+test_data = "data/MPII/train.txt"
 # The root dir of your images
-img_dir = "data/MPII/images"
+img_dir = "data/MPII/images/"
 # Specify the batch sampler.
 resize_width = 256
 resize_height = 256
@@ -67,36 +67,28 @@ resize = "{}x{}".format(resize_width, resize_height)
 train_heatmap_data_param = {
     'source': train_data,
     'root_img_dir': img_dir,
-    'batchsize': 14,
-    'cropsize': 248,
+    'batchsize': 1,
     'outsize': 256,
     'sample_per_cluster': False,
-    'random_crop': True,
+    'data_augment': True,
     'label_width': 64,
     'label_height': 64,
     'segmentation': False,
-    'flip_joint_labels': True,
-    'dont_flip_first': True,
     'angle_max': 40,
     'multfact': 1,  # set to 282 if using preprocessed data from website
-    'flip_randomly' : False,
   }
 test_heatmap_data_param = {
     'source': test_data,
     'root_img_dir': img_dir,
-    'batchsize': 14,
-    'cropsize': 248,
+    'batchsize': 1,
     'outsize': 256,
     'sample_per_cluster': False,
-    'random_crop': True,
+    'data_augment': False,
     'label_width': 64,
     'label_height': 64,
     'segmentation': False,
-    'flip_joint_labels': True,
-    'dont_flip_first': True,
     'angle_max': 40,
     'multfact': 1,  # set to 282 if using preprocessed data from website
-    'flip_randomly' : False,
   }
 train_transform_param = {
     'mirror' : 0,
@@ -149,7 +141,7 @@ pretrain_model = "models/VGGNet/VGG_ILSVRC_16_layers_fc_reduced.caffemodel"
 
 # Solver parameters.
 # Defining which GPUs to use.
-gpus = "0,1,2,3"
+gpus = "0"
 gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
@@ -216,6 +208,7 @@ HGStacked(net, from_layer='data', freeze=True)
 
 last_layer = [net[net.keys()[-1]]]
 last_layer.append(net.label)
+last_layer.append(net.data)
 net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, 
         include=dict(phase=caffe_pb2.Phase.Value('TRAIN'))
         )
@@ -227,11 +220,17 @@ shutil.copy(train_net_file, job_dir)
 
 # Create test net.
 net = caffe.NetSpec()
-net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False, transform_param=test_transform_param,
+net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=False, visualise=False, transform_param=test_transform_param,
         heatmap_data_param=test_heatmap_data_param)
 
 HGStacked(net, from_layer='data', freeze=True)
 
+last_layer = [net[net.keys()[-1]]]
+last_layer.append(net.label)
+last_layer.append(net.data)
+net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, 
+        include=dict(phase=caffe_pb2.Phase.Value('TEST'))
+        )
 with open(test_net_file, 'w') as f:
     print('name: "{}_test"'.format(model_name), file=f)
     print(net.to_proto(), file=f)
@@ -296,7 +295,7 @@ with open(job_file, 'w') as f:
   f.write('cd {}\n'.format(caffe_root))
   f.write('./build/tools/caffe train \\\n')
   f.write('--solver="{}" \\\n'.format(solver_file))
-  f.write(train_src_param)
+  #f.write(train_src_param)
   if solver_param['solver_mode'] == P.Solver.GPU:
     f.write('--gpu {} 2>&1 | tee {}/{}.log\n'.format(gpus, job_dir, model_name))
   else:

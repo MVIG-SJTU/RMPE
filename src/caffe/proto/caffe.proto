@@ -1061,21 +1061,15 @@ message HeatmapDataParameter {
   optional uint32 num_channels = 1002 [default = 3]; 
   optional uint32 batchsize = 1003;
   optional string root_img_dir = 1004;
-  optional bool random_crop = 1005;   // image augmentation type
+  optional bool data_augment = 1005 [default = false];   // image augmentation type
   optional bool sample_per_cluster = 1006;   // image sampling type
   optional string labelinds = 1007 [default = ''];   // if specified, only use these regression variables
   optional string source = 1008;
-  optional string meanfile = 1009;
-  optional string crop_meanfile = 1010;
-  optional uint32 cropsize = 1011 [default = 0];
   optional uint32 outsize = 1012 [default = 0];
-  optional float scale = 1013 [ default = 1 ];
   optional uint32 label_width = 1014 [ default = 1 ];
   optional uint32 label_height = 1015 [ default = 1 ];
-  optional bool dont_flip_first = 1016 [ default = true ];
-  optional float angle_max = 1017 [ default = 0 ];  
-  optional bool flip_joint_labels = 1018 [ default = true ];
-  optional bool flip_randomly = 1019 [ default = false ];
+  optional float angle_max = 1016 [ default = 0 ];  
+  optional string bbox_or_centerscale = 1017 [ default = 'centerscale' ];
 }
 
 // Message that stores parameters used by HDF5DataLayer

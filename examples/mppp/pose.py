@@ -64,38 +64,6 @@ resize_width = 256
 resize_height = 256
 resize = "{}x{}".format(resize_width, resize_height)
 
-train_heatmap_data_param = {
-    'source': train_data,
-    'root_img_dir': img_dir,
-    'batchsize': 1,
-    'outsize': 256,
-    'sample_per_cluster': False,
-    'data_augment': False,
-    'label_width': 64,
-    'label_height': 64,
-    'segmentation': False,
-    'angle_max': 30,
-    'multfact': 1,  # set to 282 if using preprocessed data from website
-  }
-test_heatmap_data_param = {
-    'source': test_data,
-    'root_img_dir': img_dir,
-    'batchsize': 1,
-    'outsize': 256,
-    'sample_per_cluster': False,
-    'data_augment': False,
-    'label_width': 64,
-    'label_height': 64,
-    'segmentation': False,
-    'multfact': 1,  # set to 282 if using preprocessed data from website
-  }
-train_transform_param = {
-    'mirror' : 0,
-}
-test_transform_param = {
-    'mirror' : 0,
-}
-
 # Modify the job name if you want.
 job_name = "SHG_{}".format(resize)
 # The name of the model. Modify it if you want.
@@ -131,7 +99,7 @@ pretrain_model = "models/VGGNet/VGG_ILSVRC_16_layers_fc_reduced.caffemodel"
 
 # Solver parameters.
 # Defining which GPUs to use.
-gpus = "0"
+gpus = "0,1,2,3"
 gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
@@ -153,6 +121,33 @@ num_test_image = 4952
 test_batch_size = 1
 test_iter = num_test_image / test_batch_size
 
+
+train_heatmap_data_param = {
+    'source': train_data,
+    'root_img_dir': img_dir,
+    'batchsize': batch_size,
+    'outsize': 256,
+    'sample_per_cluster': False,
+    'data_augment': False,
+    'label_width': 64,
+    'label_height': 64,
+    'segmentation': False,
+    'angle_max': 30,
+    'multfact': 1,  # set to 282 if using preprocessed data from website
+  }
+test_heatmap_data_param = {
+    'source': test_data,
+    'root_img_dir': img_dir,
+    'batchsize': test_batch_size,
+    'outsize': 256,
+    'sample_per_cluster': False,
+    'data_augment': False,
+    'label_width': 64,
+    'label_height': 64,
+    'segmentation': False,
+    'multfact': 1,  # set to 282 if using preprocessed data from website
+  }
+
 solver_param = {
     # Train parameters
     'base_lr': 2.5e-4,
@@ -161,7 +156,7 @@ solver_param = {
     'momentum': 0.0,
     'iter_size': iter_size,
     'max_iter': 60000,
-    'snapshot': 40000,
+    'snapshot': 5000,
     'display': 10,
     'average_loss': 10,
     'type': "RMSProp",
@@ -171,10 +166,7 @@ solver_param = {
     'snapshot_after_train': True,
     # Test parameters
     'test_iter': [test_iter],
-    'test_interval': 10000,
-    'eval_type': "detection",
-    'ap_version': "11point",
-    'test_initialization': False,
+    'test_interval': 100000,
     }
 
 
@@ -189,15 +181,14 @@ make_if_not_exist(snapshot_dir)
 
 # Create train net.
 net = caffe.NetSpec()
-net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False, transform_param=train_transform_param,
-        heatmap_data_param=train_heatmap_data_param)
+net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False,
 
 HGStacked(net, from_layer='data', freeze=True)
 
 last_layer = [net[net.keys()[-1]]]
 last_layer.append(net.label)
 last_layer.append(net.data)
-net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=True, 
+net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, 
         include=dict(phase=caffe_pb2.Phase.Value('TRAIN'))
         )
 
@@ -208,7 +199,7 @@ shutil.copy(train_net_file, job_dir)
 
 # Create test net.
 net = caffe.NetSpec()
-net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=False, visualise=False, transform_param=test_transform_param,
+net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=False, visualise=False,
         heatmap_data_param=test_heatmap_data_param)
 
 HGStacked(net, from_layer='data', freeze=True)

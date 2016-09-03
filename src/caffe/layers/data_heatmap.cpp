@@ -246,8 +246,9 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
     {
         cv::namedWindow("original image", cv::WINDOW_AUTOSIZE);
         cv::namedWindow("cropped image", cv::WINDOW_AUTOSIZE);
-        cv::namedWindow("interim resize image", cv::WINDOW_AUTOSIZE);
+        cv::namedWindow("cropped image with padding", cv::WINDOW_AUTOSIZE);
         cv::namedWindow("resulting image", cv::WINDOW_AUTOSIZE);
+        cv::namedWindow("heat map", cv::WINDOW_AUTOSIZE);
     }
 
     // collect "batchsize" images
@@ -331,28 +332,28 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                         DLOG(INFO) << "Using centerscale, do data augment";
                 
                         // left-top coordinates of the crop [0;x_border] x [0;y_border]
-                        float x_center = cur_cropinfo[0], y_center = cur_cropinfo[1];
-                        float scale = cur_cropinfo[2];
-                        float length = outsize*scale;
-                        //bias to center, 1/8 of crop size
-                        x_center = x_center + length*(rand()%11 - 5)/40;
-                        y_center = y_center + length*(rand()%11 - 5)/40;
+                        const float x_center = cur_cropinfo[0], y_center = cur_cropinfo[1];
+                        const float scale = cur_cropinfo[2];
+                        const float length = 200*scale;//for MPII, they scale person into 200 pixel height.
+
+                        const float x_min = x_center - length/2;
+                        const float y_min = y_center - length/2;
                         
-                        float x_min = x_center - length/2;
-                        float y_min = y_center - length/2;
+                        const float left = std::max(x_min,(float)0);
+                        const float top = std::max(y_min,(float)0);
+
                         
-                        float left = std::max(x_min,(float)0);
-                        float top = std::max(y_min,(float)0);
+                        const float pad_left = std::max(0-x_min,(float)0);
+                        const float pad_top = std::max(0-y_min,(float)0);
+                        const float pad_right = std::max(left+length-width-pad_left,(float)0);
+                        const float pad_bottom = std::max(top+length-height-pad_top,(float)0);
+
                         // do crop
-                        cv::Rect crop((int)left, (int)top, (int)std::min(length,width - left), (int)std::min(length,height - top));
+                        cv::Rect crop((int)left, (int)top, (int)std::min(length - pad_left,width - left), (int)std::min(length - pad_top,height - top));
                         // NOTE: no full copy performed, so the original image buffer is affected by the transformations below
                         cv::Mat img_crop(img, crop);
-                        //do pad
-                        float pad_left = std::max(0-x_min,(float)0);
-                        float pad_top = std::max(0-y_min,(float)0);
-                        float pad_right = std::max(left+length-width,(float)0);
-                        float pad_bottom = std::max(top+length-height,(float)0);
 
+                        //do pad
                         cv::copyMakeBorder(img_crop, img_res, (int)pad_top, (int)pad_bottom, (int)pad_left, (int)pad_right, cv::BORDER_CONSTANT, 0 );
 
                 
@@ -370,13 +371,12 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                             cv::Mat img_vis_crop(img_vis, crop);
                             cv::Mat img_res_vis = img_vis_crop / 255;
                             cv::cvtColor(img_res_vis, img_res_vis, CV_RGB2BGR);
-                            this->VisualiseAnnotations(img_res_vis, label_num_channels, cur_label_aug, multfact);
                             cv::imshow("cropped image", img_res_vis);
                         }
                 
                         // rotations
                         float angle = Uniform(-angle_max, angle_max);
-                        cv::Mat M = this->RotateImage(img_crop, angle);
+                        cv::Mat M = this->RotateImage(img_res, angle);
                 
                         // also rotate labels
                         for (int i = 0; i < label_num_channels; i += 2)
@@ -403,31 +403,34 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                 {
                     CHECK(false) << "crop type only support \"bbox\" or \"centerscale\"" << std::endl;
                 }
-            } else {
+            } 
+            else 
+            {
                 if(bbox_or_centerscale == "centerscale")
                 {
                         DLOG(INFO) << "Using centerscale, no data augment";
                 
                         // left-top coordinates of the crop [0;x_border] x [0;y_border]
-                        float x_center = cur_cropinfo[0], y_center = cur_cropinfo[1];
-                        float scale = cur_cropinfo[2];
-                        float length = outsize/scale;
+                        const float x_center = cur_cropinfo[0], y_center = cur_cropinfo[1];
+                        const float scale = cur_cropinfo[2];
+                        const float length = 200*scale;//for MPII, they scale person into 200 pixel height.
 
-                        float x_min = x_center - length/2;
-                        float y_min = y_center - length/2;
+                        const float x_min = x_center - length/2;
+                        const float y_min = y_center - length/2;
                         
-                        float left = std::max(x_min,(float)0);
-                        float top = std::max(y_min,(float)0);
+                        const float left = std::max(x_min,(float)0);
+                        const float top = std::max(y_min,(float)0);
+
+                        const float pad_left = std::max(0-x_min,(float)0);
+                        const float pad_top = std::max(0-y_min,(float)0);
+                        const float pad_right = std::max(left+length-width-pad_left,(float)0);
+                        const float pad_bottom = std::max(top+length-height-pad_top,(float)0);
+
                         // do crop
-                        cv::Rect crop((int)left, (int)top, (int)std::min(length,img.cols - left), (int)std::min(length,img.rows - top));
+                        cv::Rect crop((int)left, (int)top, (int)std::min(length - pad_left,width - left), (int)std::min(length - pad_top,height - top));
                         // NOTE: no full copy performed, so the original image buffer is affected by the transformations below
                         cv::Mat img_crop(img, crop);
                         //do pad
-                        float pad_left = std::max(0-x_min,(float)0);
-                        float pad_top = std::max(0-y_min,(float)0);
-                        float pad_right = std::max(left+length-img.cols,(float)0);
-                        float pad_bottom = std::max(top+length-img.rows,(float)0);
-
                         cv::copyMakeBorder(img_crop, img_res, (int)pad_top, (int)pad_bottom, (int)pad_left, (int)pad_right, cv::BORDER_CONSTANT, 0 );
 
                 
@@ -445,7 +448,6 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                             cv::Mat img_vis_crop(img_vis, crop);
                             cv::Mat img_res_vis = img_vis_crop / 255;
                             cv::cvtColor(img_res_vis, img_res_vis, CV_RGB2BGR);
-                            this->VisualiseAnnotations(img_res_vis, label_num_channels, cur_label_aug, multfact);
                             cv::imshow("cropped image", img_res_vis);
                         }
                 
@@ -479,7 +481,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             cv::resize(img_res, img_res, s);
 
             // "resize" annotations
-            const float resizeFact = cur_cropinfo[2];
+            const float resizeFact = outsize/(200*cur_cropinfo[2]);//for MPII, they scale person into 200 pixel height.
             for (int i = 0; i < label_num_channels; i++)
                 cur_label_aug[i] *= resizeFact;
 
@@ -521,35 +523,40 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             {
                 float x = label_resize_fact * cur_label_aug[2 * idx_ch] * multfact;
                 float y = label_resize_fact * cur_label_aug[2 * idx_ch + 1] * multfact;
-                if((int)x == 0 and (int)y == 0)
+                if((int)cur_label[2 * idx_ch] == 0 and (int)cur_label[2 * idx_ch + 1] == 0)
                 {
                     for (int i = 0; i < label_height; i++)
                     {
                         for (int j = 0; j < label_width; j++)
                         {
-                            int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_height + j;
+                            int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_width + j;
                             top_label[label_idx] = 0;
 
-                            if (idx_ch == 0)
-                                dataMatrix.at<float>((int)j, (int)i) = 0;
+                            dataMatrix.at<float>((int)i, (int)j) += 0;
                         }
                     }
                 }
                 else
-                {    for (int i = 0; i < label_height; i++)
+                {    
+                    for (int i = 0; i < label_height; i++)
                     {
                         for (int j = 0; j < label_width; j++)
                         {
-                            int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_height + j;
+                            int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_width + j;
                             float gaussian = ( 1 / ( sigma * sqrt(2 * M_PI) ) ) * exp( -0.5 * ( pow(i - y, 2.0) + pow(j - x, 2.0) ) * pow(1 / sigma, 2.0) );
                             gaussian = 4 * gaussian;
                             top_label[label_idx] = gaussian;
 
-                            if (idx_ch == 0)
-                               dataMatrix.at<float>((int)j, (int)i) = gaussian;
+                            dataMatrix.at<float>((int)i, (int)j) += gaussian;
                         }
                     }
                 }
+            }
+            if (visualise)
+            {
+                cv::Size s(outsize, outsize);
+                cv::resize(dataMatrix, dataMatrix, s);
+                cv::imshow("heat map", dataMatrix);
             }
 
         } // jittered versions loop
@@ -632,7 +639,15 @@ void DataHeatmapLayer<Dtype>::VisualiseAnnotations(cv::Mat img_annotation_vis, i
         CV_RGB(255, 128, 0),
         CV_RGB(255, 255, 0),
         CV_RGB(255, 0, 0),
-        CV_RGB(255, 0, 255)
+        CV_RGB(128, 0, 255),
+        CV_RGB(0, 0, 128),
+        CV_RGB(0, 128, 128),
+        CV_RGB(0, 128, 128),
+        CV_RGB(0, 128, 0),
+        CV_RGB(128, 128, 0),
+        CV_RGB(128, 255, 0),
+        CV_RGB(128, 0, 0),
+        CV_RGB(128, 0, 255)
     };
 
     int numCoordinates = int(label_num_channels / 2);
@@ -647,10 +662,21 @@ void DataHeatmapLayer<Dtype>::VisualiseAnnotations(cv::Mat img_annotation_vis, i
     }
 
     // connecting lines
-    cv::line(img_annotation_vis, centers[1], centers[3], CV_RGB(0, 255, 0), 1, CV_AA);
-    cv::line(img_annotation_vis, centers[2], centers[4], CV_RGB(255, 255, 0), 1, CV_AA);
-    cv::line(img_annotation_vis, centers[3], centers[5], CV_RGB(0, 0, 255), 1, CV_AA);
-    cv::line(img_annotation_vis, centers[4], centers[6], CV_RGB(0, 255, 255), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[0], centers[1], CV_RGB(0, 255, 0), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[1], centers[2], CV_RGB(255, 255, 0), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[2], centers[6], CV_RGB(0, 0, 255), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[3], centers[4], CV_RGB(0, 255, 255), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[3], centers[6], CV_RGB(0, 122, 255), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[4], centers[5], CV_RGB(0, 255, 122), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[6], centers[8], CV_RGB(122, 0, 255), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[8], centers[9], CV_RGB(0, 122, 0), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[13], centers[8], CV_RGB(122, 0, 122), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[10], centers[11], CV_RGB(255, 0, 122), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[11], centers[12], CV_RGB(255, 255, 122), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[12], centers[8], CV_RGB(122, 122, 0), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[13], centers[14], CV_RGB(0, 0, 122), 1, CV_AA);
+    cv::line(img_annotation_vis, centers[14], centers[15], CV_RGB(0, 122, 122), 1, CV_AA);
+
 }
 
 

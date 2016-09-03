@@ -65,7 +65,6 @@ protected:
     int num_means_;
     int cur_class_;
     vector<int> labelinds_;
-    vector<cv::Mat> mean_img_;
 
     bool sample_per_cluster_; // sample separately per cluster?
     string root_img_dir_;

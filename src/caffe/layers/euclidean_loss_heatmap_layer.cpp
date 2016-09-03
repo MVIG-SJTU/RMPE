@@ -164,10 +164,10 @@ void EuclideanLossHeatmapLayer<Dtype>::Visualise(float loss, cv::Mat bottom_img,
     cv::circle(overlay_img, maxLocBottom, 3, cv::Scalar(0, 0, 255), -1);
 
     // Show visualisation images
-    cv::imshow("bottom", bottom_img - 1);
-    cv::imshow("gt", gt_img - 1);
+    cv::imshow("bottom", bottom_img);
+    cv::imshow("gt", gt_img);
     cv::imshow("diff", diff_img);
-    cv::imshow("overlay", overlay_img - 1);
+    cv::imshow("overlay", overlay_img);
 
     // Store max locations
     points.push_back(maxLocGT);
@@ -240,12 +240,12 @@ void EuclideanLossHeatmapLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
         const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom)
 {
     const int count = bottom[0]->count();
-    const int channels = bottom[0]->channels();
+    //const int channels = bottom[0]->channels();
 
     caffe_sub(count, bottom[0]->cpu_data(), bottom[1]->cpu_data(), diff_.mutable_cpu_data());
 
     // strictly speaking, should be normalising by (2 * channels) due to 1/2 multiplier in front of the loss
-    Dtype loss = caffe_cpu_dot(count, diff_.cpu_data(), diff_.cpu_data()) / Dtype(channels);
+    //Dtype loss = caffe_cpu_dot(count, diff_.cpu_data(), diff_.cpu_data()) / Dtype(channels);
 
     // copy the gradient
     memcpy(bottom[0]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);

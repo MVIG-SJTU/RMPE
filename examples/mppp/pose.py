@@ -70,11 +70,11 @@ train_heatmap_data_param = {
     'batchsize': 1,
     'outsize': 256,
     'sample_per_cluster': False,
-    'data_augment': True,
+    'data_augment': False,
     'label_width': 64,
     'label_height': 64,
     'segmentation': False,
-    'angle_max': 40,
+    'angle_max': 30,
     'multfact': 1,  # set to 282 if using preprocessed data from website
   }
 test_heatmap_data_param = {
@@ -87,7 +87,6 @@ test_heatmap_data_param = {
     'label_width': 64,
     'label_height': 64,
     'segmentation': False,
-    'angle_max': 40,
     'multfact': 1,  # set to 282 if using preprocessed data from website
   }
 train_transform_param = {
@@ -96,15 +95,6 @@ train_transform_param = {
 test_transform_param = {
     'mirror' : 0,
 }
-# If true, use batch norm for all newly added layers.
-# Currently only the non batch norm version has been tested.
-use_batchnorm = False
-# Use different initial learning rate.
-if use_batchnorm:
-    base_lr = 0.0004
-else:
-    # A learning rate for batch_size = 1, num_gpus = 1.
-    base_lr = 0.00004
 
 # Modify the job name if you want.
 job_name = "SHG_{}".format(resize)
@@ -165,18 +155,16 @@ test_iter = num_test_image / test_batch_size
 
 solver_param = {
     # Train parameters
-    'base_lr': base_lr,
-    'weight_decay': 0.0005,
-    'lr_policy': "step",
-    'stepsize': 40000,
-    'gamma': 0.1,
-    'momentum': 0.9,
+    'base_lr': 2.5e-4,
+    'weight_decay': 0.0,
+    'lr_policy': "fixed",
+    'momentum': 0.0,
     'iter_size': iter_size,
     'max_iter': 60000,
     'snapshot': 40000,
     'display': 10,
     'average_loss': 10,
-    'type': "SGD",
+    'type': "RMSProp",
     'solver_mode': solver_mode,
     'device_id': device_id,
     'debug_info': False,
@@ -209,7 +197,7 @@ HGStacked(net, from_layer='data', freeze=True)
 last_layer = [net[net.keys()[-1]]]
 last_layer.append(net.label)
 last_layer.append(net.data)
-net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, 
+net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=True, 
         include=dict(phase=caffe_pb2.Phase.Value('TRAIN'))
         )
 

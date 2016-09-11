@@ -271,9 +271,9 @@ layer {
   name: "upsampleNearest", type: "Deconvolution"
   bottom: "{{bottom_name}}" top: "{{top_name}}"
   convolution_param {
-    kernel_size: {{2 * factor - factor % 2}} stride: {{factor}}
+    kernel_size: {{factor}} stride: {{factor}}
     num_output: {{C}} group: {{C}}
-    pad: {{ceil((factor - 1) / 2.)}}
+    pad: 0
     weight_filler: { type: "nearest" } bias_term: false
   }
   param { lr_mult: 0 decay_mult: 0 }
@@ -283,7 +283,7 @@ Please use this by replacing `{{}}` with your values. By specifying
 `num_output: {{C}} group: {{C}}`, it behaves as
 channel-wise convolution. The filter shape of this deconvolution layer will be
 (C, 1, K, K) where K is `kernel_size`, and this filler will set a (K, K)
-interpolation kernel for every channel of the filter identically. The resulting
+upsample kernel for every channel of the filter identically. The resulting
 shape of the top feature map will be (B, C, factor * H, factor * W).
 Note that the learning rate and the
 weight decay are set to 0 in order to keep coefficient values of upsampling

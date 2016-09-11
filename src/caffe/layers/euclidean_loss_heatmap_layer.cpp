@@ -91,12 +91,13 @@ void EuclideanLossHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& b
                     // Store visualisation for given channel
                     if (idx_ch == visualise_channel && visualise)
                     {
-                        bottom_img.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx];
+                        bottom_img.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx]<0 ? 0:(float) bottom_pred[image_idx];
+                        std::cout<<bottom_pred[image_idx]<<std::endl;
                         gt_img.at<float>((int)j, (int)i) = (float) gt_pred[image_idx];
                         diff_img.at<float>((int)j, (int)i) = (float) diff * diff;
                     }
 
-                }
+                }           
             }
         }
         // Plot visualisation
@@ -200,7 +201,7 @@ void EuclideanLossHeatmapLayer<Dtype>::VisualiseBottom(const vector<Blob<Dtype>*
             {
                 int image_idx = idx_img * visualisation_bottom->width() * visualisation_bottom->height() * visualisation_bottom->channels() + idx_ch * visualisation_bottom->width() * visualisation_bottom->height() + i * visualisation_bottom->height() + j;
                 if (isRGB && idx_ch < 3) {
-                    visualisation_bottom_img.at<cv::Vec3f>((int)j, (int)i)[idx_ch] = 4 * (float) visualisation_bottom->cpu_data()[image_idx] / 255;
+                    visualisation_bottom_img.at<cv::Vec3f>((int)j, (int)i)[idx_ch] = (float) visualisation_bottom->cpu_data()[image_idx];
                 } else if (idx_ch == visualise_channel)
                 {
                     visualisation_bottom_img.at<float>((int)j, (int)i) = (float) visualisation_bottom->cpu_data()[image_idx];
@@ -221,7 +222,7 @@ void EuclideanLossHeatmapLayer<Dtype>::VisualiseBottom(const vector<Blob<Dtype>*
     cv::circle(visualisation_bottom_img, maxLocBottom, 3, cv::Scalar(0, 0, 255), -1);
 
     // Show visualisation
-    cv::imshow("visualisation_bottom", visualisation_bottom_img - 1);
+    cv::imshow("visualisation_bottom", visualisation_bottom_img);
 }
 
 
@@ -251,6 +252,19 @@ void EuclideanLossHeatmapLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
     memcpy(bottom[0]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
     memcpy(bottom[1]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
 
+    /*caffe_cpu_axpby(
+          count,              // count
+          Dtype(1/count),                              // alpha
+          diff_.cpu_data(),                   // a
+          Dtype(0),                           // beta
+          bottom[0]->mutable_cpu_diff());  // b
+    caffe_cpu_axpby(
+          count,              // count
+          Dtype(1/count),                              // alpha
+          diff_.cpu_data(),                   // a
+          Dtype(0),                           // beta
+          bottom[1]->mutable_cpu_diff());  // b
+    */
 }
 
 

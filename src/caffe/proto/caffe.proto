@@ -429,7 +429,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 211 (last added: recurrent_param)
+// LayerParameter next available layer-specific ID: 212 (last added: recurrent_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -502,6 +502,7 @@ message LayerParameter {
   optional DummyDataParameter dummy_data_param = 109;
   optional EltwiseParameter eltwise_param = 110;
   optional ELUParameter elu_param = 140;
+  optional EltwiseAffineParameter eltwise_affine_param = 211;
   optional EmbedParameter embed_param = 137;
   optional ExpParameter exp_param = 111;
   optional FlattenParameter flatten_param = 135;
@@ -540,6 +541,17 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional VideoDataParameter video_data_param = 207;
   optional WindowDataParameter window_data_param = 129;
+}
+
+message EltwiseAffineParameter {
+
+  // Initial value of a_i. Default is a_i=1.0 for all i.
+  optional FillerParameter slope_filler = 1;
+
+  optional FillerParameter bias_filler = 2;
+
+  // Whether or not slope paramters are shared across channels.
+  optional bool channel_shared = 3 [default = false];
 }
 
 // Message that stores parameters used to apply transformation

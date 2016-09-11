@@ -90,7 +90,7 @@ job_file = "{}/{}.sh".format(job_dir, model_name)
 
 
 # The pretrained model. We use the Fully convolutional reduced (atrous) VGGNet.
-pretrain_model = "models/VGGNet/VGG_ILSVRC_16_layers_fc_reduced.caffemodel"
+pretrain_model = "/media/fred/linux/shg_final.caffemodel"
 # Stores LabelMapItem.
 
 
@@ -99,13 +99,13 @@ pretrain_model = "models/VGGNet/VGG_ILSVRC_16_layers_fc_reduced.caffemodel"
 
 # Solver parameters.
 # Defining which GPUs to use.
-gpus = "0,1,2,3"
+gpus = "0"
 gpulist = gpus.split(",")
 num_gpus = len(gpulist)
 
 # Divide the mini-batch to different GPUs.
-batch_size = 32
-accum_batch_size = 32
+batch_size = 1
+accum_batch_size = 1
 iter_size = accum_batch_size / batch_size
 solver_mode = P.Solver.CPU
 device_id = 0
@@ -117,7 +117,7 @@ if num_gpus > 0:
   device_id = int(gpulist[0])
 
 # Evaluate on whole test set.
-num_test_image = 4952
+num_test_image = 0
 test_batch_size = 1
 test_iter = num_test_image / test_batch_size
 
@@ -174,7 +174,7 @@ solver_param = {
 # Check file.
 check_if_exist(train_data)
 check_if_exist(test_data)
-check_if_exist(pretrain_model)
+#check_if_exist(pretrain_model)
 make_if_not_exist(save_dir)
 make_if_not_exist(job_dir)
 make_if_not_exist(snapshot_dir)
@@ -182,13 +182,14 @@ make_if_not_exist(snapshot_dir)
 # Create train net.
 net = caffe.NetSpec()
 net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False,
+        heatmap_data_param=train_heatmap_data_param)
 
 HGStacked(net, from_layer='data', freeze=True)
 
 last_layer = [net[net.keys()[-1]]]
 last_layer.append(net.label)
 last_layer.append(net.data)
-net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, 
+net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=True, visualise_channel=4,
         include=dict(phase=caffe_pb2.Phase.Value('TRAIN'))
         )
 
@@ -274,7 +275,7 @@ with open(job_file, 'w') as f:
   f.write('cd {}\n'.format(caffe_root))
   f.write('./build/tools/caffe train \\\n')
   f.write('--solver="{}" \\\n'.format(solver_file))
-  #f.write(train_src_param)
+  f.write(train_src_param)
   if solver_param['solver_mode'] == P.Solver.GPU:
     f.write('--gpu {} 2>&1 | tee {}/{}.log\n'.format(gpus, job_dir, model_name))
   else:

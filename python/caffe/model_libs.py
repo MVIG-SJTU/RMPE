@@ -29,7 +29,7 @@ def UnpackVariable(var, num):
     return ret
 
 def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
-    kernel_size, pad, stride, use_scale=True, eps=0.001, conv_prefix='', conv_postfix='',
+    kernel_size, pad, stride, for_HG_module=False, use_scale=True, eps=0.00001, conv_prefix='', conv_postfix='',
     bn_prefix='', bn_postfix='_bn', scale_prefix='', scale_postfix='_scale',
     bias_prefix='', bias_postfix='_bias', freeze=False):
   if freeze:
@@ -37,9 +37,17 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
   else:
     lr_mult=1
   if use_bn:
+    if for_HG_module:
+      kwargs = {
+        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=2*lr_mult, decay_mult=0)],
+        'weight_filler': dict(type='gaussian', std=0.01),
+        'bias_filler': dict(type='constant', value=0),
+        'bias_term': True,
+        }
     # parameters for convolution layer with batchnorm.
-    kwargs = {
-        'param': [dict(lr_mult=lr_mult, decay_mult=1)],
+    else:
+      kwargs = {
+        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult)],
         'weight_filler': dict(type='gaussian', std=0.01),
         'bias_term': False,
         }
@@ -52,7 +60,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     if use_scale:
       sb_kwargs = {
           'bias_term': True,
-          'param': [dict(lr_mult=lr_mult, decay_mult=1), dict(lr_mult=lr_mult, decay_mult=0)],
+          'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=lr_mult, decay_mult=0)],
           'filler': dict(type='constant', value=1.0),
           'bias_filler': dict(type='constant', value=0.0),
           }
@@ -63,7 +71,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
           }
   else:
     kwargs = {
-        'param': [dict(lr_mult=lr_mult, decay_mult=1), dict(lr_mult=2*lr_mult, decay_mult=0)],
+        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=2*lr_mult, decay_mult=0)],
         'weight_filler': dict(type='xavier'),
         'bias_filler': dict(type='constant', value=0)
         }
@@ -81,10 +89,13 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
         stride_h=stride_h, stride_w=stride_w, **kwargs)
   if use_bn:
     bn_name = '{}{}{}'.format(bn_prefix, out_layer, bn_postfix)
-    net[bn_name] = L.BatchNorm(net[conv_name], in_place=True, **bn_kwargs)
+    net[bn_name] = L.BatchNorm(net[conv_name], in_place=True, use_global_stats=for_HG_module,**bn_kwargs)
     if use_scale:
       sb_name = '{}{}{}'.format(scale_prefix, out_layer, scale_postfix)
-      net[sb_name] = L.Scale(net[bn_name], in_place=True, **sb_kwargs)
+      if for_HG_module:
+        net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False, param=[dict(lr_mult=0, decay_mult=0),dict(lr_mult=0, decay_mult=0)])
+      else:
+        net[sb_name] = L.Scale(net[bn_name], in_place=True, **sb_kwargs)
     else:
       bias_name = '{}{}{}'.format(bias_prefix, out_layer, bias_postfix)
       net[bias_name] = L.Bias(net[bn_name], in_place=True, **bias_kwargs)
@@ -92,7 +103,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     relu_name = '{}_relu'.format(conv_name)
     net[relu_name] = L.ReLU(net[conv_name], in_place=True)
 
-def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1,freeze=False):
+def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, freeze=False, for_HG_module=False):
   # ResBody(net, 'pool1', '2a', 64, 64, 256, 1, True)
 
   conv_prefix = 'res{}_'.format(block_name)
@@ -105,7 +116,14 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
 
   if use_branch1:
     branch_name = 'branch1'
-    ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=False,
+    if for_HG_module:
+      ConvBNLayer(net, from_layer, branch_name, use_bn=False, use_relu=False,
+        num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,for_HG_module=for_HG_module,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    else:
+      ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=False,
         num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
@@ -114,10 +132,24 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
   else:
     branch1 = from_layer
 
+  if for_HG_module:
+    bn_kwargs = {
+        'param': [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)],
+        'eps': 0.00001,
+      }
+    bn_name = '{}_bn'.format(from_layer)
+    net[bn_name] = L.BatchNorm(net[from_layer], use_global_stats=for_HG_module, **bn_kwargs)
+    sb_name = '{}_scale'.format(bn_name)
+    net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False,param=[dict(lr_mult=0, decay_mult=0),dict(lr_mult=0, decay_mult=0)])
+    relu_name = '{}_relu'.format(sb_name)
+    net[relu_name] = L.ReLU(net[sb_name],in_place=True)
+    from_layer = relu_name
+
+
   branch_name = 'branch2a'
   ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=True,
       num_output=out2a, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
-      conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+      conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
       scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
   out_name = '{}{}'.format(conv_prefix, branch_name)
@@ -125,13 +157,20 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
   branch_name = 'branch2b'
   ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=True,
       num_output=out2b, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
-      conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+      conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
       scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2c'
-  ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=False,
+  if for_HG_module:
+    ConvBNLayer(net, out_name, branch_name, use_bn=False, use_relu=False,
+      num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
+      conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
+      bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+  else:
+    ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=False,
       num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
@@ -140,8 +179,9 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
 
   res_name = 'res{}'.format(block_name)
   net[res_name] = L.Eltwise(net[branch1], net[branch2])
-  relu_name = '{}_relu'.format(res_name)
-  net[relu_name] = L.ReLU(net[res_name], in_place=True)
+  if not for_HG_module:
+    relu_name = '{}_relu'.format(res_name)
+    net[relu_name] = L.ReLU(net[res_name], in_place=True)
 
 
 def InceptionTower(net, from_layer, tower_name, layer_params):
@@ -1350,34 +1390,33 @@ def SqueezeNetBodyDSD(net, from_layer):
     return net
 
 def HourGlass(net, from_layer, name, n, In, out, final_relu=False, freeze=True):
-    use_branch1 = (In!=out)
-    ResBody(net, from_layer, '{}_up1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=use_branch1, freeze=freeze)
-    ResBody(net, 'res{}_up1'.format(name), '{}_up2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
-    ResBody(net, 'res{}_up2'.format(name), '{}_up4'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=True, freeze=freeze)
+    ResBody(net, from_layer, '{}_up1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256), freeze=freeze, for_HG_module=True)
+    ResBody(net, 'res{}_up1'.format(name), '{}_up2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'res{}_up2'.format(name), '{}_up4'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), freeze=freeze,for_HG_module=True)
 
     net['{}_pool1'.format(name)] = L.Pooling(net[from_layer], pool=P.Pooling.MAX, kernel_size=2, stride=2)
-    ResBody(net, '{}_pool1'.format(name), '{}_low1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=use_branch1, freeze=freeze)
-    ResBody(net, 'res{}_low1'.format(name), '{}_low2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
-    ResBody(net, 'res{}_low2'.format(name), '{}_low5'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, '{}_pool1'.format(name), '{}_low1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256), freeze=freeze,for_HG_module=True)
+    ResBody(net, 'res{}_low1'.format(name), '{}_low2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'res{}_low2'.format(name), '{}_low5'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
 
     if n > 1:
         HourGlass(net,'res{}_low5'.format(name), '{}_low6'.format(name), n-1, 256, out, freeze=freeze)
         layer_name = '{}_low6'.format(name)
     else:
-        ResBody(net, 'res{}_low5'.format(name), '{}_low6'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=True, freeze=freeze)
+        ResBody(net, 'res{}_low5'.format(name), '{}_low6'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), freeze=freeze,for_HG_module=True)
         layer_name = 'res{}_low6'.format(name)
-    ResBody(net, layer_name, '{}_low7'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=False, freeze=freeze)
+    ResBody(net, layer_name, '{}_low7'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
     
     factor = 2
-    kernel = 2 * factor - factor % 2
+    kernel = factor
     stride = factor
-    pad = int(math.ceil((factor - 1) / 2.))
-    net['{}_up5'.format(name)] = L.Deconvolution(net['res{}_low7'.format(name)],
-        convolution_param=dict(num_output=out, kernel_size=kernel, stride=stride, pad=pad,
-            bias_term=False, weight_filler=dict(type="bilinear")),
-        param=[dict(lr_mult=0)])
+    pad = 0
+    net['{}_Up5'.format(name)] = L.Deconvolution(net['res{}_low7'.format(name)],
+        convolution_param=dict(num_output=out, group=out,kernel_size=kernel, stride=stride, pad=pad,
+            bias_term=False, weight_filler=dict(type="nearest")), 
+        param=[dict(lr_mult=0, decay_mult=0)])
 
-    net[name] = L.Eltwise(net['res{}_up4'.format(name)], net['{}_up5'.format(name)])
+    net[name] = L.Eltwise(net['res{}_up4'.format(name)], net['{}_Up5'.format(name)])
     if final_relu:
       relu_name = '{}_relu'.format(res_name)
       net[relu_name] = L.ReLU(net[res_name], in_place=True)
@@ -1391,60 +1430,65 @@ def HGStacked(net, from_layer, freeze=True):
     scale_prefix = 'scale_'
     scale_postfix = ''
     ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=7, pad=3, stride=2,
+        num_output=64, kernel_size=7, pad=3, stride=2,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
 
-    ResBody(net, 'conv1', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze)
+    ResBody(net, 'conv1', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
 
     net.pool1 = L.Pooling(net.res1, pool=P.Pooling.MAX, kernel_size=2, stride=2)
 
-    ResBody(net, 'pool1', '4', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze)
-    ResBody(net, 'res4', '5', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze)
-    ResBody(net, 'res5', '6', out2a=128, out2b=128, out2c=256, stride=1, use_branch1=True, freeze=freeze)
+    ResBody(net, 'pool1', '4', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'res4', '5', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'res5', '6', out2a=128, out2b=128, out2c=256, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
 
     HourGlass(net, 'res6', 'hg1', n=4, In=256, out=512, freeze=freeze)
 
     ConvBNLayer(net, 'hg1', 'linear1', use_bn=True, use_relu=True,
-        num_output=512, kernel_size=1, pad=0, stride=1,
+        num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
     ConvBNLayer(net, 'linear1', 'linear2', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=1, pad=0, stride=1,
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
-    ConvBNLayer(net, 'linear2', 'out_1', use_bn=False, use_relu=True, use_scale=False,
-        num_output=256+128, kernel_size=1, pad=0, stride=1,
+    ConvBNLayer(net, 'linear2', 'out1', use_bn=False, use_relu=False, use_scale=False,
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True,
+        conv_prefix=conv_prefix, conv_postfix=conv_postfix,
+        bn_prefix=bn_prefix, bn_postfix=bn_postfix,
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+    ConvBNLayer(net, 'out1', 'out1_', use_bn=False, use_relu=False, use_scale=False,
+        num_output=384, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
     concat = []
-    concat.append(net.pool1)
     concat.append(net.linear2)
+    concat.append(net.pool1)
     net.concat1 = L.Concat(*concat, axis=1)
-    ConvBNLayer(net, 'concat1', 'concat1_CN', use_bn=False, use_relu=True, use_scale=False,
-        num_output=256+128, kernel_size=1, pad=0, stride=1,
+    ConvBNLayer(net, 'concat1', 'concat1_CN', use_bn=False, use_relu=False, use_scale=False,
+        num_output=256+128, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
-    net.int1 = L.Eltwise(net.concat1_CN, net['out_1'])
+    net.int1 = L.Eltwise(net.concat1_CN, net['out1_'])
 
     HourGlass(net, 'int1', 'hg2', n=4, In=384, out=512, freeze=freeze)
     ConvBNLayer(net, 'hg2', 'linear3', use_bn=True, use_relu=True,
-        num_output=512, kernel_size=1, pad=0, stride=1,
+        num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
     ConvBNLayer(net, 'linear3', 'linear4', use_bn=True, use_relu=True,
-        num_output=512, kernel_size=1, pad=0, stride=1,
+        num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
-    ConvBNLayer(net, 'linear4', 'output', use_bn=False, use_relu=True, use_scale=False,
-        num_output=16, kernel_size=1, pad=0, stride=1,
+    ConvBNLayer(net, 'linear4', 'output', use_bn=False, use_relu=False, use_scale=False,
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)

@@ -269,6 +269,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
         DLOG(INFO) << "img: " << img_path;
         img = cv::imread(img_path, CV_LOAD_IMAGE_COLOR);
 
+
         // show image
         if (visualise)
         {
@@ -506,8 +507,10 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                 {
                     for (int j = 0; j < outsize; j++)
                     {
-                        top_data[idx_img_aug * img_size + c * channel_size + i * outsize + j] = img_res.at<cv::Vec3f>(i, j)[c];
+                        top_data[idx_img_aug * img_size + c * channel_size + i * outsize + j] = img_res.at<cv::Vec3f>(i, j)[c]/255.0;
+                        //std::cout<<top_data[idx_img_aug * img_size + c * channel_size + i * outsize + j]<<" ";
                     }
+                    //std::cout<<std::endl;
                 }
             }
 
@@ -517,7 +520,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             const int label_img_size = label_channel_size * label_num_channels / 2;
             cv::Mat dataMatrix = cv::Mat::zeros(label_height, label_width, CV_32FC1);
             float label_resize_fact = (float) label_height / (float) outsize;
-            float sigma = 1.5;
+            float sigma = 2;
 
             for (int idx_ch = 0; idx_ch < label_num_channels / 2; idx_ch++)
             {

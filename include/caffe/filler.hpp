@@ -261,6 +261,52 @@ class BilinearFiller : public Filler<Dtype> {
   }
 };
 
+/*!
+@brief Fills a Blob with coefficients of nearest interpolation for upsampling.
+This is intended to be used in DeconvolutionLayer acting as UpsamplingNearestLayer.
+You can upsample a feature map with shape of (B, C, H, W) by any integer factor
+using the following proto.
+\code
+layer {
+  name: "upsampleNearest", type: "Deconvolution"
+  bottom: "{{bottom_name}}" top: "{{top_name}}"
+  convolution_param {
+    kernel_size: {{2 * factor - factor % 2}} stride: {{factor}}
+    num_output: {{C}} group: {{C}}
+    pad: {{ceil((factor - 1) / 2.)}}
+    weight_filler: { type: "nearest" } bias_term: false
+  }
+  param { lr_mult: 0 decay_mult: 0 }
+}
+\endcode
+Please use this by replacing `{{}}` with your values. By specifying
+`num_output: {{C}} group: {{C}}`, it behaves as
+channel-wise convolution. The filter shape of this deconvolution layer will be
+(C, 1, K, K) where K is `kernel_size`, and this filler will set a (K, K)
+interpolation kernel for every channel of the filter identically. The resulting
+shape of the top feature map will be (B, C, factor * H, factor * W).
+Note that the learning rate and the
+weight decay are set to 0 in order to keep coefficient values of upsampling
+ unchanged during training. 
+\endcode
+ */
+template <typename Dtype>
+class NearestUpsamplingFiller : public Filler<Dtype> {
+ public:
+  explicit NearestUpsamplingFiller(const FillerParameter& param)
+      : Filler<Dtype>(param) {}
+  virtual void Fill(Blob<Dtype>* blob) {
+    CHECK_EQ(blob->num_axes(), 4) << "Blob must be 4 dim.";
+    CHECK_EQ(blob->width(), blob->height()) << "Filter must be square";
+    Dtype* data = blob->mutable_cpu_data();
+    for (int i = 0; i < blob->count(); ++i) {
+      data[i] = 1;
+    }
+    CHECK_EQ(this->filler_param_.sparse(), -1)
+         << "Sparsity not supported by this Filler.";
+  }
+};
+
 /**
  * @brief Get a specific filler from the specification given in FillerParameter.
  *
@@ -284,7 +330,9 @@ Filler<Dtype>* GetFiller(const FillerParameter& param) {
     return new MSRAFiller<Dtype>(param);
   } else if (type == "bilinear") {
     return new BilinearFiller<Dtype>(param);
-  } else {
+  } else if (type == "nearest") {
+    return new NearestUpsamplingFiller<Dtype>(param);
+  }else {
     CHECK(false) << "Unknown filler name: " << param.type();
   }
   return (Filler<Dtype>*)(NULL);

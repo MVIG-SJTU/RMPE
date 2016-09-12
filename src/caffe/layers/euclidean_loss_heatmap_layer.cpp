@@ -91,8 +91,8 @@ void EuclideanLossHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& b
                     // Store visualisation for given channel
                     if (idx_ch == visualise_channel && visualise)
                     {
-                        bottom_img.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx]<0 ? 0:(float) bottom_pred[image_idx];
-                        std::cout<<bottom_pred[image_idx]<<std::endl;
+                        bottom_img.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx];
+                        //std::cout<<bottom_pred[image_idx]<<std::endl;
                         gt_img.at<float>((int)j, (int)i) = (float) gt_pred[image_idx];
                         diff_img.at<float>((int)j, (int)i) = (float) diff * diff;
                     }
@@ -250,21 +250,7 @@ void EuclideanLossHeatmapLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
 
     // copy the gradient
     memcpy(bottom[0]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
-    memcpy(bottom[1]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
-
-    /*caffe_cpu_axpby(
-          count,              // count
-          Dtype(1/count),                              // alpha
-          diff_.cpu_data(),                   // a
-          Dtype(0),                           // beta
-          bottom[0]->mutable_cpu_diff());  // b
-    caffe_cpu_axpby(
-          count,              // count
-          Dtype(1/count),                              // alpha
-          diff_.cpu_data(),                   // a
-          Dtype(0),                           // beta
-          bottom[1]->mutable_cpu_diff());  // b
-    */
+    //memcpy(bottom[1]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
 }
 
 

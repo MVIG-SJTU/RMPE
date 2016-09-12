@@ -54,9 +54,9 @@ resume_training = False
 remove_old_models = False
 
 # The database file for training data. Created by data/VOC0712/create_data.sh
-train_data = "data/MPII/train.txt"
+train_data = "data/MPII/train_bbox.txt"
 # The database file for testing data. Created by data/VOC0712/create_data.sh
-test_data = "data/MPII/train.txt"
+test_data = "data/MPII/train_bbox.txt"
 # The root dir of your images
 img_dir = "data/MPII/images/"
 # Specify the batch sampler.
@@ -124,11 +124,12 @@ test_iter = num_test_image / test_batch_size
 
 train_heatmap_data_param = {
     'source': train_data,
+    'bbox_or_centerscale' : "bbox",
     'root_img_dir': img_dir,
     'batchsize': batch_size,
     'outsize': 256,
     'sample_per_cluster': False,
-    'data_augment': False,
+    'data_augment': True,
     'label_width': 64,
     'label_height': 64,
     'segmentation': False,
@@ -137,6 +138,7 @@ train_heatmap_data_param = {
   }
 test_heatmap_data_param = {
     'source': test_data,
+    'bbox_or_centerscale' : "bbox",
     'root_img_dir': img_dir,
     'batchsize': test_batch_size,
     'outsize': 256,
@@ -181,15 +183,15 @@ make_if_not_exist(snapshot_dir)
 
 # Create train net.
 net = caffe.NetSpec()
-net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False,
+net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=True,
         heatmap_data_param=train_heatmap_data_param)
 
-HGStacked(net, from_layer='data', freeze=True)
+HGStacked(net, from_layer='data', freeze=False)
 
 last_layer = [net[net.keys()[-1]]]
 last_layer.append(net.label)
 last_layer.append(net.data)
-net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=True, visualise_channel=4,
+net.heatmap_loss = L.EuclideanLossHeatmap(*last_layer, visualise=False, visualise_channel=4,
         include=dict(phase=caffe_pb2.Phase.Value('TRAIN'))
         )
 

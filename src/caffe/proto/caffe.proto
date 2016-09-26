@@ -429,7 +429,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 212 (last added: recurrent_param)
+// LayerParameter next available layer-specific ID: 214 (last added: recurrent_param)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -497,6 +497,7 @@ message LayerParameter {
   optional CropParameter crop_param = 144;
   optional DataParameter data_param = 107;
   optional DetectionEvaluateParameter detection_evaluate_param = 205;
+  optional DetectionHeatmapParameter detection_heatmap_param = 213;
   optional DetectionOutputParameter detection_output_param = 204;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
@@ -534,6 +535,7 @@ message LayerParameter {
   optional ScaleParameter scale_param = 142;
   optional SigmoidParameter sigmoid_param = 124;
   optional SoftmaxParameter softmax_param = 125;
+  optional SpatialTransformerParameter st_param = 212;
   optional SPPParameter spp_param = 132;
   optional SliceParameter slice_param = 126;
   optional TanHParameter tanh_param = 127;
@@ -541,6 +543,31 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional VideoDataParameter video_data_param = 207;
   optional WindowDataParameter window_data_param = 129;
+}
+
+message SpatialTransformerParameter {
+
+  // How to use the parameter passed by localisation network
+  optional string transform_type = 1 [default = "affine"];
+  // What is the sampling technique
+  optional string sampler_type = 2 [default = "bilinear"];
+  
+  // If not set,stay same with the input dimension H and W
+  optional int32 output_H = 3;
+  optional int32 output_W = 4;
+  
+  // If false, only compute dTheta, DO NOT compute dU
+  optional bool to_compute_dU = 5 [default = true];
+  
+  // The default value for some parameters
+  optional double theta_1_1 = 6; 
+  optional double theta_1_2 = 7;
+  optional double theta_1_3 = 8;
+  optional double theta_2_1 = 9;
+  optional double theta_2_2 = 10;
+  optional double theta_2_3 = 11;
+
+  optional bool de_transform = 12 [default = false];
 }
 
 message EltwiseAffineParameter {
@@ -985,6 +1012,11 @@ message DetectionOutputParameter {
   optional float visualize_threshold = 11;
 }
 
+// Message that store parameters used by DetectionHeatmapLayer
+message DetectionHeatmapParameter {
+  // Number of classes to be predicted. Required!
+  optional uint32 num_joints = 1;
+}
 message DropoutParameter {
   optional float dropout_ratio = 1 [default = 0.5]; // dropout ratio
 }

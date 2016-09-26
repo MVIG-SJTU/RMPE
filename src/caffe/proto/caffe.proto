@@ -497,7 +497,6 @@ message LayerParameter {
   optional CropParameter crop_param = 144;
   optional DataParameter data_param = 107;
   optional DetectionEvaluateParameter detection_evaluate_param = 205;
-  optional DetectionHeatmapParameter detection_heatmap_param = 213;
   optional DetectionOutputParameter detection_output_param = 204;
   optional DropoutParameter dropout_param = 108;
   optional DummyDataParameter dummy_data_param = 109;
@@ -526,6 +525,7 @@ message LayerParameter {
   optional PoolingParameter pooling_param = 121;
   optional PowerParameter power_param = 122;
   optional PReLUParameter prelu_param = 131;
+  optional PredictionHeatmapParameter prediction_heatmap_param = 213;
   optional PriorBoxParameter prior_box_param = 203;
   optional PythonParameter python_param = 130;
   optional RecurrentParameter recurrent_param = 146;
@@ -1012,8 +1012,8 @@ message DetectionOutputParameter {
   optional float visualize_threshold = 11;
 }
 
-// Message that store parameters used by DetectionHeatmapLayer
-message DetectionHeatmapParameter {
+// Message that store parameters used by PredicitionHeatmapLayer
+message PredictionHeatmapParameter {
   // Number of classes to be predicted. Required!
   optional uint32 num_joints = 1;
 }

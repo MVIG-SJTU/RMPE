@@ -10,7 +10,7 @@
 #include <opencv2/highgui/highgui_c.h>
 #include <opencv2/imgproc/imgproc.hpp>
 
-#include "caffe/layers/detection_heatmap_layer.hpp"
+#include "caffe/layers/prediction_heatmap_layer.hpp"
 
 // Enables visualisation of inputs, GT, prediction and loss.
 
@@ -18,7 +18,7 @@
 namespace caffe {
 
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::Reshape(
+void PredictionHeatmapLayer<Dtype>::Reshape(
     const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top) {
 
     vector<int> top_shape(2, 1);
@@ -31,15 +31,15 @@ void DetectionHeatmapLayer<Dtype>::Reshape(
 
 
 template<typename Dtype>
-void DetectionHeatmapLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
+void PredictionHeatmapLayer<Dtype>::LayerSetUp(const vector<Blob<Dtype>*>& bottom, const vector<Blob<Dtype>*>& top)
 {
-    DetectionHeatmapParameter detection_heatmap_param = this->layer_param_.detection_heatmap_param();
-    CHECK(detection_heatmap_param.has_num_joints()) << "Must specify num_joints";
-    CHECK_EQ(detection_heatmap_param.num_joints(),bottom[0]->channels()) << "'num_joints' must equals to final number of channels";
+    PredictionHeatmapParameter prediction_heatmap_param = this->layer_param_.prediction_heatmap_param();
+    CHECK(prediction_heatmap_param.has_num_joints()) << "Must specify num_joints";
+    CHECK_EQ(prediction_heatmap_param.num_joints(),bottom[0]->channels()) << "'num_joints' must equals to final number of channels";
 }
 
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
+void PredictionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top)
 {
     int visualise_channel = this->layer_param_.visualise_channel();
@@ -115,7 +115,7 @@ void DetectionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& botto
 
 
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
+void PredictionHeatmapLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& bottom,
         const vector<Blob<Dtype>*>& top)
 {
     Forward_cpu(bottom, top);
@@ -123,7 +123,7 @@ void DetectionHeatmapLayer<Dtype>::Forward_gpu(const vector<Blob<Dtype>*>& botto
 
 // Visualise predicted heatmap
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::Visualise(cv::Mat bottom_img, cv::Size size)
+void PredictionHeatmapLayer<Dtype>::Visualise(cv::Mat bottom_img, cv::Size size)
 {
     // Resize all images to fixed size
     PrepVis(bottom_img, size);
@@ -136,7 +136,7 @@ void DetectionHeatmapLayer<Dtype>::Visualise(cv::Mat bottom_img, cv::Size size)
 // Plot another visualisation image overlaid with ground truth & prediction locations
 // (particularly useful e.g. if you set this to the original input image)
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::VisualiseBottom(const vector<Blob<Dtype>*>& bottom, int idx_img, std::vector<cv::Mat>& heatmaps, cv::Size size)
+void PredictionHeatmapLayer<Dtype>::VisualiseBottom(const vector<Blob<Dtype>*>& bottom, int idx_img, std::vector<cv::Mat>& heatmaps, cv::Size size)
 {
     // Determine which layer to visualise
     Blob<Dtype>* visualisation_bottom = bottom[1];
@@ -191,18 +191,18 @@ void DetectionHeatmapLayer<Dtype>::VisualiseBottom(const vector<Blob<Dtype>*>& b
 
 // Convert from Caffe representation to OpenCV img
 template <typename Dtype>
-void DetectionHeatmapLayer<Dtype>::PrepVis(cv::Mat img, cv::Size size)
+void PredictionHeatmapLayer<Dtype>::PrepVis(cv::Mat img, cv::Size size)
 {
     cv::transpose(img, img);
     cv::flip(img, img, 1);
 }
 
 #ifdef CPU_ONLY
-STUB_GPU(DetectionHeatmapLayer);
+STUB_GPU(PredictionHeatmapLayer);
 #endif
 
-INSTANTIATE_CLASS(DetectionHeatmapLayer);
-REGISTER_LAYER_CLASS(DetectionHeatmap);
+INSTANTIATE_CLASS(PredictionHeatmapLayer);
+REGISTER_LAYER_CLASS(PredictionHeatmap);
 
 
 }  // namespace caffe

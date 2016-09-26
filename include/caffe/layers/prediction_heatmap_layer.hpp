@@ -1,5 +1,5 @@
-#ifndef CAFFE_DETECTION_HEATMAP_HPP_
-#define CAFFE_DETECTION_HEATMAP_HPP_
+#ifndef CAFFE_PREDICTION_HEATMAP_HPP_
+#define CAFFE_PREDICTION_HEATMAP_HPP_
 
 #include "caffe/layer.hpp"
 #include <vector>
@@ -17,9 +17,9 @@ namespace caffe
 
 
 template <typename Dtype>
-class DetectionHeatmapLayer : public Layer<Dtype> {
+class PredictionHeatmapLayer : public Layer<Dtype> {
 public:
-  explicit DetectionHeatmapLayer(const LayerParameter& param)
+  explicit PredictionHeatmapLayer(const LayerParameter& param)
     : Layer<Dtype>(param) {}
   virtual void Reshape(const vector<Blob<Dtype>*>& bottom,
                        const vector<Blob<Dtype>*>& top);
@@ -57,4 +57,4 @@ protected:
 
 }
 
-#endif /* CAFFE_DETECTION_HEATMAP_HPP_ */
+#endif /* CAFFE_PREDICTION_HEATMAP_HPP_ */

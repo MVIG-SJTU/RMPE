@@ -37,7 +37,7 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     cv::Mat heatmap;
 
     const Dtype* pred_data = bottom[0]->cpu_data(); // predictions
-    const Dtype* label = bottom[1]->cpu_data(); // labels
+    const Dtype* label = bottom[1]->cpu_data();     // labels
     const int num_images = bottom[1]->num();
     const int num_channels = bottom[1]->channels();
     const int height = bottom[1]->height();

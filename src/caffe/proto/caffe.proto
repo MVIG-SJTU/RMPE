@@ -429,7 +429,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 214 (last added: recurrent_param)
+// LayerParameter next available layer-specific ID: 215 (last added: AccuracyHeatmapParameter)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -487,6 +487,7 @@ message LayerParameter {
   // engine parameter for selecting the implementation.
   // The default for the engine is set by the ENGINE switch at compile-time.
   optional AccuracyParameter accuracy_param = 102;
+  optional AccuracyHeatmapParameter accuracy_heatmap_param = 214; 
   optional AnnotatedDataParameter annotated_data_param = 200;
   optional ArgMaxParameter argmax_param = 103;
   optional BatchNormParameter batch_norm_param = 139;
@@ -543,6 +544,11 @@ message LayerParameter {
   optional TileParameter tile_param = 138;
   optional VideoDataParameter video_data_param = 207;
   optional WindowDataParameter window_data_param = 129;
+}
+
+message AccuracyHeatmapParameter {
+  //Threshold for PCK
+  optional float threshold = 1 [default = 0.5];
 }
 
 message SpatialTransformerParameter {

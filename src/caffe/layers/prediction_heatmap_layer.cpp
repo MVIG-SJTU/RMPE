@@ -12,7 +12,7 @@
 
 #include "caffe/layers/prediction_heatmap_layer.hpp"
 
-// Enables visualisation of inputs, GT, prediction and loss.
+// Enables visualisation of inputs and predictions.
 
 
 namespace caffe {
@@ -93,9 +93,9 @@ void PredictionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
             double minVal, maxVal;
             cv::Point minLoc, maxLoc;
             cv::minMaxLoc(heatmap, &minVal, &maxVal, &minLoc, &maxLoc);
-            top_data[idx_img + idx_ch + 0] = maxLoc.x;
-            top_data[idx_img + idx_ch + 1] = maxLoc.y;
-            top_data[idx_img + idx_ch + 2] = maxVal;
+            top_data[3*num_channels*idx_img + 3*idx_ch + 0] = maxLoc.x;
+            top_data[3*num_channels*idx_img + 3*idx_ch + 1] = maxLoc.y;
+            top_data[3*num_channels*idx_img + 3*idx_ch + 2] = maxVal;
         }
         // Plot visualisation
         if (visualise)
@@ -108,8 +108,6 @@ void PredictionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
             this->VisualiseBottom(bottom, idx_img, heatmaps, size);
             cv::waitKey(0);     // Wait forever a key is pressed
         }
-
-        
     }
 }
 

@@ -1140,12 +1140,12 @@ def SqueezeNetBody(net, from_layer):
             'bias_filler': dict(type='constant', value=0)}
 
     assert from_layer in net.keys()
-    net.conv1 = L.Convolution(net[from_layer], num_output=64, pad=0, kernel_size=3,stride=2, **kwargs)
-    net.relu_conv1 = L.ReLU(net.conv1, in_place=True)
+    net.conv1s = L.Convolution(net[from_layer], num_output=96, pad=0, kernel_size=7,stride=2, **kwargs)
+    net.relu_conv1s = L.ReLU(net.conv1s, in_place=True)
 
-    net.pool1 = L.Pooling(net.relu_conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    net.pool1s = L.Pooling(net.relu_conv1s, pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire2
-    net['fire2/squeeze1x1'] = L.Convolution(net.pool1, num_output=16, pad=0, kernel_size=1, **kwargs)
+    net['fire2/squeeze1x1'] = L.Convolution(net.pool1s, num_output=16, pad=0, kernel_size=1, **kwargs)
     net['fire2/relu_squeeze1x1'] = L.ReLU(net['fire2/squeeze1x1'], in_place=True)
     expand_fire2 = []
     net['fire2/expand1x1'] = L.Convolution(net['fire2/relu_squeeze1x1'], num_output=64, pad=0, kernel_size=1, **kwargs)
@@ -1244,10 +1244,10 @@ def SqueezeNetBody(net, from_layer):
         'weight_filler': dict(type='gaussian', mean=0, std=0.01),
         'bias_term': True,
         }
-    net.conv10 = L.Convolution(net.drop9, num_output=1000, pad=0, kernel_size=1, **kwargsGS)
+    net.conv10 = L.Convolution(net.drop9, num_output=6, pad=0, kernel_size=1, **kwargsGS)
     net.relu_conv10 = L.ReLU(net.conv10, in_place=True)
-    #global pooling
-    net.pool10 = L.Pooling(net.relu_conv10, pool=P.Pooling.AVE, global_pooling=True)
+    #get theta
+    net.theta = L.InnerProduct(net.relu_conv10,num_output=6,**kwargs)
 
     return net
 

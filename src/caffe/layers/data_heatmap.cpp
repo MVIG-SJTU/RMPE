@@ -48,6 +48,8 @@ void DataHeatmapLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     const int label_height = heatmap_data_param.label_height();
     const int outsize = heatmap_data_param.outsize();
     const int label_batchsize = batchsize;
+    scale_width = heatmap_data_param.scale_width();
+    scale_height = heatmap_data_param.scale_height();
     sample_per_cluster_ = heatmap_data_param.sample_per_cluster();
     root_img_dir_ = heatmap_data_param.root_img_dir();
 
@@ -398,8 +400,13 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                 {
                         DLOG(INFO) << "Using bbox, do data augment";
                 
-                        const float x_min = cur_cropinfo[0], y_min = cur_cropinfo[1], x_max = cur_cropinfo[2], y_max = cur_cropinfo[3];
-                        const float W = x_max-x_min, H = y_max-y_min;
+                        float x_min = cur_cropinfo[0], y_min = cur_cropinfo[1], x_max = cur_cropinfo[2], y_max = cur_cropinfo[3];
+                        float W = x_max-x_min, H = y_max-y_min;
+                        x_min = std::max((float)0,x_min-W*(scale_width-1)/2);
+                        y_min = std::max((float)0,y_min-H*(scale_height-1)/2);
+                        x_max = std::min((float)width,x_max+W*(scale_width-1)/2);
+                        y_max = std::min((float)height,y_max+H*(scale_height-1)/2);
+                        W = x_max-x_min; H = y_max-y_min;                        
                         const float length = std::max(W,H);
                         cropImgLength = length;
 
@@ -508,8 +515,13 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                 {
                         DLOG(INFO) << "Using bbox, no data augment";
                 
-                        const float x_min = cur_cropinfo[0], y_min = cur_cropinfo[1], x_max = cur_cropinfo[2], y_max = cur_cropinfo[3];
-                        const float W = x_max-x_min, H = y_max-y_min;
+                        float x_min = cur_cropinfo[0], y_min = cur_cropinfo[1], x_max = cur_cropinfo[2], y_max = cur_cropinfo[3];
+                        float W = x_max-x_min, H = y_max-y_min;
+                        x_min = std::max((float)0,x_min-W*(scale_width-1)/2);
+                        y_min = std::max((float)0,y_min-H*(scale_height-1)/2);
+                        x_max = std::min((float)width,x_max+W*(scale_width-1)/2);
+                        y_max = std::min((float)height,y_max+H*(scale_height-1)/2);
+                        W = x_max-x_min; H = y_max-y_min;
                         const float length = std::max(W,H);
                         cropImgLength = length;
 
@@ -603,7 +615,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             const int label_img_size = label_channel_size * label_num_channels / 2;
             cv::Mat dataMatrix = cv::Mat::zeros(label_height, label_width, CV_32FC1);
             float label_resize_fact = (float) label_height / (float) outsize;
-            float sigma = 2;
+            float sigma = 3;
 
             for (int idx_ch = 0; idx_ch < label_num_channels / 2; idx_ch++)
             {
@@ -630,7 +642,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                         {
                             int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_width + j;
                             float gaussian = ( 1 / ( sigma * sqrt(2 * M_PI) ) ) * exp( -0.5 * ( pow(i - y, 2.0) + pow(j - x, 2.0) ) * pow(1 / sigma, 2.0) );
-                            gaussian = 4 * gaussian;
+                            gaussian = 7.52 * gaussian;
                             top_label[label_idx] = gaussian;
 
                             dataMatrix.at<float>((int)i, (int)j) += gaussian;

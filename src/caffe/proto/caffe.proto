@@ -1120,6 +1120,8 @@ message HeatmapDataParameter {
   optional uint32 label_height = 1015 [ default = 1 ];
   optional float angle_max = 1016 [ default = 0 ];  
   optional string bbox_or_centerscale = 1017 [ default = 'centerscale' ];
+  optional float scale_width = 1018 [ default = 1.0 ];
+  optional float scale_height = 1019 [ default = 1.0 ];
 }
 
 // Message that stores parameters used by HDF5DataLayer

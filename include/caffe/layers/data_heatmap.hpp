@@ -71,6 +71,8 @@ protected:
     vector<float> cur_class_img_; // current class index
     int cur_img_; // current image index
     vector<int> img_idx_map_; // current image indices for each class
+    float scale_width; //scale width when using bbox input format
+    float scale_height; //scale height when using bbox input format
 
     // array of lists: one list of image names per class
     vector< vector< pair<string, pair<vector<float>, pair<vector<float>, int> > > > > img_list_;

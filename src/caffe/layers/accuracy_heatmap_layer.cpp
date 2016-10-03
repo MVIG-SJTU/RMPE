@@ -33,7 +33,6 @@ template <typename Dtype>
 void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom,
     const vector<Blob<Dtype>*>& top) {
     Dtype* accuracy = top[0]->mutable_cpu_data();
-    Dtype* label_data;
     cv::Mat heatmap;
 
     const Dtype* pred_data = bottom[0]->cpu_data(); // predictions
@@ -43,12 +42,11 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
     const int height = bottom[1]->height();
     const int width = bottom[1]->width();
 
-    label_data = new Dtype[3*num_channels];
     DLOG(INFO) << "label size: " << bottom[0]->height() << " " << bottom[0]->width() << " " << bottom[0]->channels();
 
     const int channel_size = height * width;
     const int img_size = channel_size * num_channels;
-    const int output_size = height*width;
+    const int output_size = height;
 
     int point_count = 0;
     int correct_point = 0;
@@ -58,7 +56,7 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
         // Each channel represents a point
         for (int idx_ch = 0; idx_ch < num_channels; idx_ch++)
         {
-            heatmap = cv::Mat::zeros(height, width, CV_32FC1);;
+            heatmap = cv::Mat::zeros(height, width, CV_32FC1);
             for (int i = 0; i < height; i++)
             {
                 for (int j = 0; j < width; j++)
@@ -73,9 +71,6 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
             double minVal, maxVal;
             cv::Point minLoc, maxLoc;
             cv::minMaxLoc(heatmap, &minVal, &maxVal, &minLoc, &maxLoc);
-            label_data[3*idx_ch + 0] = maxLoc.x;
-            label_data[3*idx_ch + 1] = maxLoc.y;
-            label_data[3*idx_ch + 2] = maxVal;
 
             cv::Point pred_point;
             pred_point.x = pred_data[3*num_channels*idx_img + 3*idx_ch + 0];
@@ -83,12 +78,12 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
             if(maxLoc.x > 1 and maxLoc.y > 1)
             {
               point_count++;
-              correct_point += (cv::norm(maxLoc - pred_point)/(output_size/10))>thres ? 1 : 0;
+              correct_point += (cv::norm(maxLoc - pred_point)/(output_size/10))<thres ? 1 : 0;
             }
         }
     }
 
-    accuracy[0] = (double)correct_point / point_count;
+    accuracy[0] = correct_point / (double)point_count;
   // Accuracy layer should not be used as a loss function.
 }
 

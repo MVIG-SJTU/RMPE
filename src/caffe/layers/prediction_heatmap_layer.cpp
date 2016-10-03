@@ -83,8 +83,8 @@ void PredictionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
                     if (idx_ch == visualise_channel && visualise)
                     {
                         bottom_img.at<float>((int)j, (int)i) += (float) bottom_pred[image_idx];
-                        heatmap.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx];
                     }
+                    heatmap.at<float>((int)j, (int)i) = (float) bottom_pred[image_idx];
                 }           
             }
             heatmaps.push_back(heatmap);

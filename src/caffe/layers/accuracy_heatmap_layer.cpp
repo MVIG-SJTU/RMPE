@@ -63,7 +63,7 @@ void AccuracyHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bottom
                 {
                     // Store visualisation for all channels                  
                     int image_idx = idx_img * img_size + idx_ch * channel_size + i * width + j;
-                    heatmap.at<float>((int)j, (int)i) = (float) label[image_idx];
+                    heatmap.at<float>((int)i, (int)j) = (float) label[image_idx];
                 }           
             }
 

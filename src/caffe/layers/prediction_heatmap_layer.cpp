@@ -93,8 +93,8 @@ void PredictionHeatmapLayer<Dtype>::Forward_cpu(const vector<Blob<Dtype>*>& bott
             double minVal, maxVal;
             cv::Point minLoc, maxLoc;
             cv::minMaxLoc(heatmap, &minVal, &maxVal, &minLoc, &maxLoc);
-            top_data[3*num_channels*idx_img + 3*idx_ch + 0] = maxLoc.x;
-            top_data[3*num_channels*idx_img + 3*idx_ch + 1] = maxLoc.y;
+            top_data[3*num_channels*idx_img + 3*idx_ch + 0] = maxLoc.y;//It's x in real space
+            top_data[3*num_channels*idx_img + 3*idx_ch + 1] = maxLoc.x;//It's y in real space
             top_data[3*num_channels*idx_img + 3*idx_ch + 2] = maxVal;
         }
         // Plot visualisation

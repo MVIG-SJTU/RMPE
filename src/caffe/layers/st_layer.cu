@@ -91,6 +91,7 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	const Dtype* output_grid_data = output_grid.gpu_data();
 	
 	Dtype* full_theta_data = full_theta.mutable_gpu_data();
+	Dtype* full_gamma_data = full_gamma.mutable_gpu_data();
 	Dtype* input_grid_data = input_grid.mutable_gpu_data();
 	Dtype* V = top[0]->mutable_gpu_data();
 
@@ -115,35 +116,41 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 		}
 	}
 
-	// For detransform, replace theta with alpha
+	// For detransform, calculate gamma for de-transform
 	if(de_transform){
-		Dtype* full_alpha_data = full_theta.mutable_cpu_data();
 		for(int i=0; i<N; i++){
-			double denom_ = full_alpha_data[6*i+0]*full_alpha_data[6*i+4] - full_alpha_data[6*i+1]*full_alpha_data[6*i+3];
+			double denom_ = full_gamma_data[6*i+0]*full_gamma_data[6*i+4] - full_gamma_data[6*i+1]*full_gamma_data[6*i+3];
 			if(denom_ == 0){
 				std::cout << "Singular matrix encountered. Do identity mapping." << std::endl;
-				full_alpha_data[6*i+0] = 1; full_alpha_data[6*i+1] = 0; full_alpha_data[6*i+2] = 0;
-				full_alpha_data[6*i+3] = 0; full_alpha_data[6*i+4] = 1; full_alpha_data[6*i+5] = 0;
+				full_gamma_data[6*i+0] = 1; full_gamma_data[6*i+1] = 0; full_gamma_data[6*i+2] = 0;
+				full_gamma_data[6*i+3] = 0; full_gamma_data[6*i+4] = 1; full_gamma_data[6*i+5] = 0;
 			}
 			else{
-				Dtype tmp_a = full_alpha_data[6*i+0];
-				Dtype tmp_b = full_alpha_data[6*i+1];
-				full_alpha_data[6*i+0] = full_alpha_data[6*i+4]/denom_; full_alpha_data[6*i+1] = full_alpha_data[6*i+3]/denom_; 
-				full_alpha_data[6*i+3] = tmp_b/denom_; full_alpha_data[6*i+4] = tmp_a/denom_; 
+				Dtype tmp_a = full_gamma_data[6*i+0];
+				Dtype tmp_b = full_gamma_data[6*i+1];
+				full_gamma_data[6*i+0] = full_gamma_data[6*i+4]/denom_; full_gamma_data[6*i+1] = full_gamma_data[6*i+3]/denom_; 
+				full_gamma_data[6*i+3] = tmp_b/denom_; full_gamma_data[6*i+4] = tmp_a/denom_; 
 				
-				Dtype tmp_c = full_alpha_data[6*i+2];
-				Dtype tmp_d = full_alpha_data[6*i+5];
-				full_alpha_data[6*i+2] = -(full_alpha_data[6*i+0]*tmp_c + full_alpha_data[6*i+1]*tmp_d);
-				full_alpha_data[6*i+5] = -(full_alpha_data[6*i+3]*tmp_c + full_alpha_data[6*i+4]*tmp_d);
+				Dtype tmp_c = full_gamma_data[6*i+2];
+				Dtype tmp_d = full_gamma_data[6*i+5];
+				full_gamma_data[6*i+2] = -(full_gamma_data[6*i+0]*tmp_c + full_gamma_data[6*i+1]*tmp_d);
+				full_gamma_data[6*i+5] = -(full_gamma_data[6*i+3]*tmp_c + full_gamma_data[6*i+4]*tmp_d);
 			}
 		}
+		// compute out input_grid_data
+		for(int i = 0; i < N; ++i) {
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
+					output_grid_data, full_gamma_data + 6 * i, (Dtype)0.,
+					input_grid_data + (output_H_ * output_W_ * 2) * i);
+		}
 	}
-
-	// compute out input_grid_data
-	for(int i = 0; i < N; ++i) {
-		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
-				output_grid_data, full_theta_data + 6 * i, (Dtype)0.,
-				input_grid_data + (output_H_ * output_W_ * 2) * i);
+	else{
+		// compute out input_grid_data
+		for(int i = 0; i < N; ++i) {
+			caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasTrans, output_H_ * output_W_, 2, 3, (Dtype)1.,
+					output_grid_data, full_theta_data + 6 * i, (Dtype)0.,
+					input_grid_data + (output_H_ * output_W_ * 2) * i);
+		}
 	}
 
 	const int nthreads = N * C * output_H_ * output_W_;
@@ -284,49 +291,106 @@ void SpatialTransformerLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& to
 	const Dtype* input_grid_data = input_grid.gpu_data();
 	const Dtype* U = bottom[0]->gpu_data();
 
+	Dtype* dFull_theta = full_theta.mutable_gpu_diff();
+	Dtype* dTheta = bottom[1]->mutable_gpu_diff();	
 	if(!de_transform){
-		Dtype* dFull_theta = full_theta.mutable_gpu_diff();
-		Dtype* dTheta = bottom[1]->mutable_gpu_diff();
 		Dtype* dTheta_tmp_diff = dTheta_tmp.mutable_gpu_diff();
-	
+		
 		caffe_gpu_set(dTheta_tmp.count(), (Dtype)0., dTheta_tmp_diff);
+		
+		const int nthreads = N * C * output_H_ * output_W_;
+		
+		SpatialTransformerBackwardGPU_dTheta<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
+				CAFFE_CUDA_NUM_THREADS>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
+						dV, U, dTheta_tmp_diff);
+		
+		Dtype* all_ones_2_data = all_ones_2.mutable_gpu_data();
+		caffe_gpu_set(all_ones_2.count(), (Dtype)1., all_ones_2_data);
+			
+		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, full_theta.count(), 1, output_H_ * output_W_ * C, 
+				(Dtype)1., dTheta_tmp_diff, all_ones_2_data, (Dtype)0., dFull_theta);
+					
+		/*const Dtype* db_dFull_theta = full_theta.cpu_diff();
+		for(int i=0; i<full_theta.count(); ++i) {
+			std::cout << db_dFull_theta[i] << " ";
+		}
+		std::cout<<std::endl;*/}
+    else{
+    	Dtype* dFull_gamma = full_gamma.mutable_gpu_diff();
+		Dtype* dGamma = bottom[1]->mutable_gpu_diff();
+		Dtype* dGamma_tmp_diff = dGamma_tmp.mutable_gpu_diff();
+		Dtype* dTheta_1_2_data = dTheta_1_2.mutable_gpu_data();
+		caffe_gpu_set(dGamma_tmp.count(), (Dtype)0., dGamma_tmp_diff);
 	
 		const int nthreads = N * C * output_H_ * output_W_;
 	
 		SpatialTransformerBackwardGPU_dTheta<Dtype><<<CAFFE_GET_BLOCKS(nthreads),
 				CAFFE_CUDA_NUM_THREADS>>>(nthreads, C, output_H_, output_W_, H, W, input_grid_data,
-						dV, U, dTheta_tmp_diff);
+						dV, U, dGamma_tmp_diff);
 	
 		Dtype* all_ones_2_data = all_ones_2.mutable_gpu_data();
 		caffe_gpu_set(all_ones_2.count(), (Dtype)1., all_ones_2_data);
 		
-		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, full_theta.count(), 1, output_H_ * output_W_ * C, 
-				(Dtype)1., dTheta_tmp_diff, all_ones_2_data, (Dtype)0., dFull_theta);
+		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, full_gamma.count(), 1, output_H_ * output_W_ * C, 
+				(Dtype)1., dGamma_tmp_diff, all_ones_2_data, (Dtype)0., dFull_gamma);
 				
 		/*const Dtype* db_dFull_theta = full_theta.cpu_diff();
 		for(int i=0; i<full_theta.count(); ++i) {
 			std::cout << db_dFull_theta[i] << " ";
 		}
-		std::cout<<std::endl;*/
-				
-		int k = 0;
-		const int num_threads = N;
-		for(int i=0; i<6; ++i) {
-			if(!is_pre_defined_theta[i]) {
-				copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads, 
-					6, i, dFull_theta, 6 - pre_defined_count, k, dTheta);
-				//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" << 
-				//	6 - pre_defined_count << " of dTheta" << std::endl;
-				++ k;
-			}
+		sstd::cout<<std::endl;*/
+            const Dtype* full_theta_data = full_theta.gpu_data();
+            const Dtype* full_gamma_data = full_gamma.gpu_data();
+            Dtype* dg_dt_data = dg_dt.mutable_gpu_data();
+            Dtype* dGamma_1_2_data = dGamma_1_2.mutable_gpu_data();
+            for(int i=0; i<N; i++){
+                double denom_ = full_theta_data[6*i+0]*full_theta_data[6*i+4] - full_theta_data[6*i+1]*full_theta_data[6*i+3];
+                if(denom_ == 0){
+                        dFull_theta[6*i+0] = 0; dFull_theta[6*i+1] = 0; dFull_theta[6*i+2] = 0;
+                        dFull_theta[6*i+3] = 0; dFull_theta[6*i+4] = 0; dFull_theta[6*i+5] = 0;
+                }
+                else{
+                        //d_theta_3
+                        dFull_theta[6*i+2] = -1 * (full_gamma_data[6*i+0]*dGamma[6*i+2] + full_gamma_data[6*i+1]*dGamma[6*i+5]);
+                        dFull_theta[6*i+5] = -1 * (full_gamma_data[6*i+3]*dGamma[6*i+2] + full_gamma_data[6*i+4]*dGamma[6*i+5]);
+
+                        //d_theta_1_2
+						dg_dt_data[0*4 + 0] = (-1)*full_theta_data[6*i + 4]*full_theta_data[6*i + 4];   dg_dt_data[0*4 + 1] = full_theta_data[6*i + 1]*full_theta_data[6*i + 4];   dg_dt_data[0*4 + 2] = full_theta_data[6*i + 3]*full_theta_data[6*i + 4];  dg_dt_data[0*4 + 3] = (-1)*full_theta_data[6*i + 3]*full_theta_data[6*i + 1];
+     					dg_dt_data[1*4 + 0] = full_theta_data[6*i + 4]*full_theta_data[6*i + 3];  dg_dt_data[1*4 + 1] = (-1)*full_theta_data[6*i + 0]*full_theta_data[6*i + 4];   dg_dt_data[1*4 + 2] = (-1)*full_theta_data[6*i + 3]*full_theta_data[6*i + 3];  dg_dt_data[1*4 + 3] = full_theta_data[6*i + 0]*full_theta_data[6*i + 3];
+     					dg_dt_data[2*4 + 0] = full_theta_data[6*i + 4]*full_theta_data[6*i + 1];  dg_dt_data[2*4 + 1] = (-1)*full_theta_data[6*i + 1]*full_theta_data[6*i + 1];  dg_dt_data[2*4 + 2] = (-1)*full_theta_data[6*i + 0]*full_theta_data[6*i + 4]; dg_dt_data[2*4 + 3] = full_theta_data[6*i + 0]*full_theta_data[6*i + 1];
+     					dg_dt_data[3*4 + 0] = (-1)*full_theta_data[6*i + 3]*full_theta_data[6*i + 1];  dg_dt_data[3*4 + 1] = full_theta_data[6*i + 0]*full_theta_data[6*i + 1];  dg_dt_data[3*4 + 2] = full_theta_data[6*i + 3]*full_theta_data[6*i + 0];  dg_dt_data[3*4 + 3] = (-1)*full_theta_data[6*i + 0]*full_theta_data[6*i + 0];
+                		
+                		dGamma_1_2_data[0] = dGamma[6*i + 0] - dGamma[6*i + 2]*full_theta_data[6*i + 2];
+                		dGamma_1_2_data[1] = dGamma[6*i + 3] - dGamma[6*i + 5]*full_theta_data[6*i + 2];
+                		dGamma_1_2_data[2] = dGamma[6*i + 1] - dGamma[6*i + 2]*full_theta_data[6*i + 5];
+                		dGamma_1_2_data[3] = dGamma[6*i + 4] - dGamma[6*i + 5]*full_theta_data[6*i + 5];
+                		caffe_gpu_gemm<Dtype>(CblasNoTrans, CblasNoTrans, 4, 4, 1, 
+							(Dtype)1., dg_dt_data, dGamma_1_2_data, (Dtype)0., dTheta_1_2_data);
+
+                		dFull_theta[6*i+0] = dTheta_1_2_data[0]; dFull_theta[6*i+1] = dTheta_1_2_data[2];
+                		dFull_theta[6*i+3] = dTheta_1_2_data[1]; dFull_theta[6*i+4] = dTheta_1_2_data[3];
+                }
+            }
+    }
+
+	int k = 0;
+	const int num_threads = N;
+	for(int i=0; i<6; ++i) {
+		if(!is_pre_defined_theta[i]) {
+			copy_values<Dtype><<<CAFFE_GET_BLOCKS(num_threads), CAFFE_CUDA_NUM_THREADS>>>(num_threads, 
+				6, i, dFull_theta, 6 - pre_defined_count, k, dTheta);
+			//std::cout << "Copying " << i << "/6 of dFull_theta to " << k << "/" << 
+			//	6 - pre_defined_count << " of dTheta" << std::endl;
+			++ k;
 		}
+	}
 		
-		/*const Dtype* db_dtheta = bottom[1]->cpu_diff();
-		for(int i=0; i<bottom[1]->count(); ++i) {
-			std::cout << db_dtheta[i] << " ";
-		}
-		std::cout<<std::endl;*/
-	}		
+	/*const Dtype* db_dtheta = bottom[1]->cpu_diff();
+	for(int i=0; i<bottom[1]->count(); ++i) {
+		std::cout << db_dtheta[i] << " ";
+	}
+	std::cout<<std::endl;*/
+
 	if(to_compute_dU_ or de_transform) {
 		Dtype* dU = bottom[0]->mutable_gpu_diff();
 		caffe_gpu_set(bottom[0]->count(), (Dtype)0., dU);

@@ -159,17 +159,38 @@ void SpatialTransformerLayer<Dtype>::Reshape(const vector<Blob<Dtype>*>& bottom,
 	dTheta_tmp_shape[3] = output_H_ * output_W_ * C;
 
 	dTheta_tmp.Reshape(dTheta_tmp_shape);
+	dGamma_tmp.Reshape(dTheta_tmp_shape);
 
 	// init all_ones_2
 	vector<int> all_ones_2_shape(1);
 	all_ones_2_shape[0] = output_H_ * output_W_ * C;
 	all_ones_2.Reshape(all_ones_2_shape);
 
+	// init dg_dt
+	vector<int> dg_dt_shape(2);
+	dg_dt_shape[0] = 4;
+	dg_dt_shape[1] = 4;
+	dg_dt.Reshape(dg_dt_shape);
+
+	// init dGamma_1_2
+	vector<int> dGamma_1_2_shape(2);
+	dGamma_1_2_shape[0] = 4;
+	dGamma_1_2_shape[1] = 1;
+	dGamma_1_2.Reshape(dGamma_1_2_shape);
+
+	// init dTheta_1_2
+	vector<int> dTheta_1_2_shape(2);
+	dTheta_1_2_shape[0] = 4;
+	dTheta_1_2_shape[1] = 1;
+	dTheta_1_2.Reshape(dTheta_1_2_shape);
+
 	// reshape full_theta
 	vector<int> full_theta_shape(2);
 	full_theta_shape[0] = N;
 	full_theta_shape[1] = 6;
 	full_theta.Reshape(full_theta_shape);
+
+	full_gamma.Reshape(full_theta_shape);
 
 	if(global_debug) std::cout<<prefix<<"Finished."<<std::endl;
 }

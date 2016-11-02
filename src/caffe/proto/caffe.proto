@@ -429,7 +429,7 @@ message ParamSpec {
 // NOTE
 // Update the next available ID when you add a new LayerParameter field.
 //
-// LayerParameter next available layer-specific ID: 215 (last added: AccuracyHeatmapParameter)
+// LayerParameter next available layer-specific ID: 214(last added: AccuracyHeatmapParameter)
 message LayerParameter {
   optional string name = 1; // the layer name
   optional string type = 2; // the layer type
@@ -545,6 +545,8 @@ message LayerParameter {
   optional VideoDataParameter video_data_param = 207;
   optional WindowDataParameter window_data_param = 129;
 }
+
+
 
 message AccuracyHeatmapParameter {
   //Threshold for PCK

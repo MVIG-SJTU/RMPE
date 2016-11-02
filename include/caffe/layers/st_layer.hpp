@@ -68,9 +68,14 @@ private:
 	bool de_transform;
 
 	Blob<Dtype> dTheta_tmp;	// used for back propagation part in GPU implementation
+	Blob<Dtype> dGamma_tmp;
+	Blob<Dtype> dGamma_1_2;
+	Blob<Dtype> dTheta_1_2;
 	Blob<Dtype> all_ones_2;	// used for back propagation part in GPU implementation
+	Blob<Dtype> dg_dt;
 
 	Blob<Dtype> full_theta;	// used for storing data and diff for full six-dim theta
+	Blob<Dtype> full_gamma;	// used for storing data and diff for full six-dim theta
 	Dtype pre_defined_theta[6];
 	bool is_pre_defined_theta[6];
 	int pre_defined_count;

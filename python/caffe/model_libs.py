@@ -1267,7 +1267,13 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
         num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
 
     #get theta
-    net.theta = L.InnerProduct(net.conv10,num_output=6,**kwargs)
+    kwargsfile = {
+        'param': dict(lr_mult=1, decay_mult=1),
+        'weight_filler': dict(type='constant', value=0),
+        'bias_term': True,
+        'bias_filler': dict(type='file', file='examples/mppp/bias_init.txt')
+        }
+    net.theta = L.InnerProduct(net.conv10,num_output=6,**kwargsfile)
 
     return net
 

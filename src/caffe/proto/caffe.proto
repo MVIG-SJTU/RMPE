@@ -173,6 +173,8 @@ message FillerParameter {
     AVERAGE = 2;
   }
   optional VarianceNorm variance_norm = 8 [default = FAN_IN];
+    // added by Kaichun Mo
+  optional string file = 9;
 }
 
 message NetParameter {

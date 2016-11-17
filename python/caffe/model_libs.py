@@ -1133,259 +1133,141 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
     return mbox_layers
 
 
-def SqueezeNetBody(net, from_layer):
+def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
             'bias_filler': dict(type='constant', value=0)}
 
     assert from_layer in net.keys()
-    net.conv1s = L.Convolution(net[from_layer], num_output=96, pad=0, kernel_size=7,stride=2, **kwargs)
-    net.relu_conv1s = L.ReLU(net.conv1s, in_place=True)
+    ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=3, pad=0, stride=1,for_HG_module=True, freeze=freeze)
 
-    net.pool1s = L.Pooling(net.relu_conv1s, pool=P.Pooling.MAX, kernel_size=3, stride=2)
+    net.pool1s = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire2
-    net['fire2/squeeze1x1'] = L.Convolution(net.pool1s, num_output=16, pad=0, kernel_size=1, **kwargs)
-    net['fire2/relu_squeeze1x1'] = L.ReLU(net['fire2/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'pool1s', 'fire2/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire2 = []
-    net['fire2/expand1x1'] = L.Convolution(net['fire2/relu_squeeze1x1'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire2/relu_expand1x1'] =  L.ReLU(net['fire2/expand1x1'], in_place=True)
-    net['fire2/expand3x3'] = L.Convolution(net['fire2/relu_squeeze1x1'], num_output=64, pad=1, kernel_size=3, **kwargs)
-    net['fire2/relu_expand3x3'] =  L.ReLU(net['fire2/expand3x3'], in_place=True)
-    expand_fire2.append(net['fire2/relu_expand1x1'])
-    expand_fire2.append(net['fire2/relu_expand3x3'])
+    ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand1x1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand3x3', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+
+    expand_fire2.append(net['fire2/expand1x1'])
+    expand_fire2.append(net['fire2/expand3x3'])
     net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
     #fire3
-    net['fire3/squeeze1x1'] = L.Convolution(net['fire2/concat'], num_output=16, pad=0, kernel_size=1, **kwargs)
-    net['fire3/relu_squeeze1x1'] = L.ReLU(net['fire3/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'fire2/concat', 'fire3/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire3 = []
-    net['fire3/expand1x1'] = L.Convolution(net['fire3/relu_squeeze1x1'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire3/relu_expand1x1'] =  L.ReLU(net['fire3/expand1x1'], in_place=True)
-    net['fire3/expand3x3'] = L.Convolution(net['fire3/relu_squeeze1x1'], num_output=64, pad=1, kernel_size=3, **kwargs)
-    net['fire3/relu_expand3x3'] =  L.ReLU(net['fire3/expand3x3'], in_place=True)
-    expand_fire3.append(net['fire3/relu_expand1x1'])
-    expand_fire3.append(net['fire3/relu_expand3x3'])
+    ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand1x1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand3x3', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+
+    expand_fire3.append(net['fire3/expand1x1'])
+    expand_fire3.append(net['fire3/expand3x3'])
     net['fire3/concat'] = L.Concat(*expand_fire3, axis=1)
+    #pool3
+    net.pool3 = L.Pooling(net['fire3/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire4
-    net['fire4/squeeze1x1'] = L.Convolution(net['fire3/concat'], num_output=32, pad=0, kernel_size=1, **kwargs)
-    net['fire4/relu_squeeze1x1'] = L.ReLU(net['fire4/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'pool3', 'fire4/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire4 = []
-    net['fire4/expand1x1'] = L.Convolution(net['fire4/relu_squeeze1x1'], num_output=128, pad=0, kernel_size=1, **kwargs)
-    net['fire4/relu_expand1x1'] =  L.ReLU(net['fire4/expand1x1'], in_place=True)
-    net['fire4/expand3x3'] = L.Convolution(net['fire4/relu_squeeze1x1'], num_output=128, pad=1, kernel_size=3, **kwargs)
-    net['fire4/relu_expand3x3'] =  L.ReLU(net['fire4/expand3x3'], in_place=True)
-    expand_fire4.append(net['fire4/relu_expand1x1'])
-    expand_fire4.append(net['fire4/relu_expand3x3'])
+    ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand1x1', use_bn=True, use_relu=True,
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand3x3', use_bn=True, use_relu=True,
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+
+    expand_fire4.append(net['fire4/expand1x1'])
+    expand_fire4.append(net['fire4/expand3x3'])
     net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
-    #pool4
-    net.pool4 = L.Pooling(net['fire4/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire5
-    net['fire5/squeeze1x1'] = L.Convolution(net.pool4, num_output=32, pad=0, kernel_size=1, **kwargs)
-    net['fire5/relu_squeeze1x1'] = L.ReLU(net['fire5/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'fire4/concat', 'fire5/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire5 = []
-    net['fire5/expand1x1'] = L.Convolution(net['fire5/relu_squeeze1x1'], num_output=128, pad=0, kernel_size=1, **kwargs)
-    net['fire5/relu_expand1x1'] =  L.ReLU(net['fire5/expand1x1'], in_place=True)
-    net['fire5/expand3x3'] = L.Convolution(net['fire5/relu_squeeze1x1'], num_output=128, pad=1, kernel_size=3, **kwargs)
-    net['fire5/relu_expand3x3'] =  L.ReLU(net['fire5/expand3x3'], in_place=True)
-    expand_fire5.append(net['fire5/relu_expand1x1'])
-    expand_fire5.append(net['fire5/relu_expand3x3'])
+    ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand1x1', use_bn=True, use_relu=True,
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand3x3', use_bn=True, use_relu=True,
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+    expand_fire5.append(net['fire5/expand1x1'])
+    expand_fire5.append(net['fire5/expand3x3'])
     net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
+    #pool5
+    net.pool5 = L.Pooling(net['fire5/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire6
-    net['fire6/squeeze1x1'] = L.Convolution(net['fire5/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
-    net['fire6/relu_squeeze1x1'] = L.ReLU(net['fire6/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'pool5', 'fire6/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire6 = []
-    net['fire6/expand1x1'] = L.Convolution(net['fire6/relu_squeeze1x1'], num_output=192, pad=0, kernel_size=1, **kwargs)
-    net['fire6/relu_expand1x1'] =  L.ReLU(net['fire6/expand1x1'], in_place=True)
-    net['fire6/expand3x3'] = L.Convolution(net['fire6/relu_squeeze1x1'], num_output=192, pad=1, kernel_size=3, **kwargs)
-    net['fire6/relu_expand3x3'] =  L.ReLU(net['fire6/expand3x3'], in_place=True)
-    expand_fire6.append(net['fire6/relu_expand1x1'])
-    expand_fire6.append(net['fire6/relu_expand3x3'])
+    ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand1x1', use_bn=True, use_relu=True,
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand3x3', use_bn=True, use_relu=True,
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+
+    expand_fire6.append(net['fire6/expand1x1'])
+    expand_fire6.append(net['fire6/expand3x3'])
     net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
     #fire7
-    net['fire7/squeeze1x1'] = L.Convolution(net['fire6/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
-    net['fire7/relu_squeeze1x1'] = L.ReLU(net['fire7/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'fire6/concat', 'fire7/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire7 = []
-    net['fire7/expand1x1'] = L.Convolution(net['fire7/relu_squeeze1x1'], num_output=192, pad=0, kernel_size=1, **kwargs)
-    net['fire7/relu_expand1x1'] =  L.ReLU(net['fire7/expand1x1'], in_place=True)
-    net['fire7/expand3x3'] = L.Convolution(net['fire7/relu_squeeze1x1'], num_output=192, pad=1, kernel_size=3, **kwargs)
-    net['fire7/relu_expand3x3'] =  L.ReLU(net['fire7/expand3x3'], in_place=True)
-    expand_fire7.append(net['fire7/relu_expand1x1'])
-    expand_fire7.append(net['fire7/relu_expand3x3'])
+    ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand1x1', use_bn=True, use_relu=True,
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand3x3', use_bn=True, use_relu=True,
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+    expand_fire7.append(net['fire7/expand1x1'])
+    expand_fire7.append(net['fire7/expand3x3'])
     net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
+
     #fire8
-    net['fire8/squeeze1x1'] = L.Convolution(net['fire7/concat'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire8/relu_squeeze1x1'] = L.ReLU(net['fire8/squeeze1x1'], in_place=True)
+    ConvBNLayer(net, 'fire7/concat', 'fire8/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire8 = []
-    net['fire8/expand1x1'] = L.Convolution(net['fire8/relu_squeeze1x1'], num_output=256, pad=0, kernel_size=1, **kwargs)
-    net['fire8/relu_expand1x1'] =  L.ReLU(net['fire8/expand1x1'], in_place=True)
-    net['fire8/expand3x3'] = L.Convolution(net['fire8/relu_squeeze1x1'], num_output=256, pad=1, kernel_size=3, **kwargs)
-    net['fire8/relu_expand3x3'] =  L.ReLU(net['fire8/expand3x3'], in_place=True)
-    expand_fire8.append(net['fire8/relu_expand1x1'])
-    expand_fire8.append(net['fire8/relu_expand3x3'])
-    net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)   
-    #pool8
-    net.pool8 = L.Pooling(net['fire8/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
-    #fire9
-    net['fire9/squeeze1x1'] = L.Convolution(net.pool8, num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire9/relu_squeeze1x1'] = L.ReLU(net['fire9/squeeze1x1'], in_place=True)
-    expand_fire9 = []
-    net['fire9/expand1x1'] = L.Convolution(net['fire9/relu_squeeze1x1'], num_output=256, pad=0, kernel_size=1, **kwargs)
-    net['fire9/relu_expand1x1'] =  L.ReLU(net['fire9/expand1x1'], in_place=True)
-    net['fire9/expand3x3'] = L.Convolution(net['fire9/relu_squeeze1x1'], num_output=256, pad=1, kernel_size=3, **kwargs)
-    net['fire9/relu_expand3x3'] =  L.ReLU(net['fire9/expand3x3'], in_place=True)
-    expand_fire9.append(net['fire9/relu_expand1x1'])
-    expand_fire9.append(net['fire9/relu_expand3x3'])
-    net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)  
-    #drop9
-    net.drop9 = L.Dropout(net['fire9/concat'], dropout_ratio=0.5, in_place=True)
-    #conv_final
-    kwargsGS = {
-        'param': dict(lr_mult=1, decay_mult=1),
-        'weight_filler': dict(type='gaussian', mean=0, std=0.01),
-        'bias_term': True,
-        }
-    net.conv10 = L.Convolution(net.drop9, num_output=6, pad=0, kernel_size=1, **kwargsGS)
-    net.relu_conv10 = L.ReLU(net.conv10, in_place=True)
-    #get theta
-    net.theta = L.InnerProduct(net.relu_conv10,num_output=6,**kwargs)
+    ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand1x1', use_bn=True, use_relu=True,
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
 
-    return net
-
-def SqueezeNetBodyDSD(net, from_layer):
-    kwargs = {
-            'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
-            'weight_filler': dict(type='xavier'),
-            'bias_filler': dict(type='constant', value=0)}
-    assert from_layer in net.keys()
-    net.conv1_1 = L.Convolution(net[from_layer], num_output=64, pad=1, kernel_size=3, **kwargs)
-
-    net.relu1_1 = L.ReLU(net.conv1_1, in_place=True)
-    net.conv1_2 = L.Convolution(net.relu1_1, num_output=64, pad=1, kernel_size=3, **kwargs)
-    net.relu1_2 = L.ReLU(net.conv1_2, in_place=True)
-
-    name = 'pool1'
-    net.pool1 = L.Pooling(net.relu1_2, pool=P.Pooling.MAX, kernel_size=2, stride=2)
-
-    net.conv2_1 = L.Convolution(net[name], num_output=128, pad=1, kernel_size=3, **kwargs)
-    net.relu2_1 = L.ReLU(net.conv2_1, in_place=True)
-    net.conv2_2 = L.Convolution(net.relu2_1, num_output=128, pad=1, kernel_size=3, **kwargs)
-    net.relu2_2 = L.ReLU(net.conv2_2, in_place=True)
-
-    comment = '''assert from_layer in net.keys()
-    net.conv1 = L.Convolution(net[from_layer], num_output=96, pad=0, kernel_size=7,stride=2, **kwargs)
-    net.relu_conv1 = L.ReLU(net.conv1, in_place=True)
-
-    net.pool1 = L.Pooling(net.relu_conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
-    #fire2
-    net['fire2/conv1x1_1'] = L.Convolution(net.pool1, num_output=16, pad=0, kernel_size=1, **kwargs)
-    net['fire2/relu_conv1x1_1'] = L.ReLU(net['fire2/conv1x1_1'], in_place=True)
-    expand_fire2 = []
-    net['fire2/conv1x1_2'] = L.Convolution(net['fire2/relu_conv1x1_1'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire2/relu_conv1x1_2'] =  L.ReLU(net['fire2/conv1x1_2'], in_place=True)
-    net['fire2/conv3x3_2'] = L.Convolution(net['fire2/relu_conv1x1_1'], num_output=64, pad=1, kernel_size=3, **kwargs)
-    net['fire2/relu_conv3x3_2'] =  L.ReLU(net['fire2/conv3x3_2'], in_place=True)
-    expand_fire2.append(net['fire2/relu_conv1x1_2'])
-    expand_fire2.append(net['fire2/relu_conv3x3_2'])
-    net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
-    '''#fire3
-    net['fire3/conv1x1_1'] = L.Convolution(net.relu2_2, num_output=16, pad=0, kernel_size=1, **kwargs)
-    net['fire3/relu_conv1x1_1'] = L.ReLU(net['fire3/conv1x1_1'], in_place=True)
-    expand_fire3 = []
-    net['fire3/conv1x1_2'] = L.Convolution(net['fire3/relu_conv1x1_1'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire3/relu_conv1x1_2'] =  L.ReLU(net['fire3/conv1x1_2'], in_place=True)
-    net['fire3/conv3x3_2'] = L.Convolution(net['fire3/relu_conv1x1_1'], num_output=64, pad=1, kernel_size=3, **kwargs)
-    net['fire3/relu_conv3x3_2'] =  L.ReLU(net['fire3/conv3x3_2'], in_place=True)
-    expand_fire3.append(net['fire3/relu_conv1x1_2'])
-    expand_fire3.append(net['fire3/relu_conv3x3_2'])
-    net['fire3/concat'] = L.Concat(*expand_fire3, axis=1)
-    #fire4
-    net['fire4/conv1x1_1'] = L.Convolution(net['fire3/concat'], num_output=32, pad=0, kernel_size=1, **kwargs)
-    net['fire4/relu_conv1x1_1'] = L.ReLU(net['fire4/conv1x1_1'], in_place=True)
-    expand_fire4 = []
-    net['fire4/conv1x1_2'] = L.Convolution(net['fire4/relu_conv1x1_1'], num_output=128, pad=0, kernel_size=1, **kwargs)
-    net['fire4/relu_conv1x1_2'] =  L.ReLU(net['fire4/conv1x1_2'], in_place=True)
-    net['fire4/conv3x3_2'] = L.Convolution(net['fire4/relu_conv1x1_1'], num_output=128, pad=1, kernel_size=3, **kwargs)
-    net['fire4/relu_conv3x3_2'] =  L.ReLU(net['fire4/conv3x3_2'], in_place=True)
-    expand_fire4.append(net['fire4/relu_conv1x1_2'])
-    expand_fire4.append(net['fire4/relu_conv3x3_2'])
-    net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
-    #pool4
-    net.pool4 = L.Pooling(net['fire4/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
-    #fire5
-    net['fire5/conv1x1_1'] = L.Convolution(net.pool4, num_output=32, pad=0, kernel_size=1, **kwargs)
-    net['fire5/relu_conv1x1_1'] = L.ReLU(net['fire5/conv1x1_1'], in_place=True)
-    expand_fire5 = []
-    net['fire5/conv1x1_2'] = L.Convolution(net['fire5/relu_conv1x1_1'], num_output=128, pad=0, kernel_size=1, **kwargs)
-    net['fire5/relu_conv1x1_2'] =  L.ReLU(net['fire5/conv1x1_2'], in_place=True)
-    net['fire5/conv3x3_2'] = L.Convolution(net['fire5/relu_conv1x1_1'], num_output=128, pad=1, kernel_size=3, **kwargs)
-    net['fire5/relu_conv3x3_2'] =  L.ReLU(net['fire5/conv3x3_2'], in_place=True)
-    expand_fire5.append(net['fire5/relu_conv1x1_2'])
-    expand_fire5.append(net['fire5/relu_conv3x3_2'])
-    net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
-    #fire6
-    net['fire6/conv1x1_1'] = L.Convolution(net['fire5/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
-    net['fire6/relu_conv1x1_1'] = L.ReLU(net['fire6/conv1x1_1'], in_place=True)
-    expand_fire6 = []
-    net['fire6/conv1x1_2'] = L.Convolution(net['fire6/relu_conv1x1_1'], num_output=192, pad=0, kernel_size=1, **kwargs)
-    net['fire6/relu_conv1x1_2'] =  L.ReLU(net['fire6/conv1x1_2'], in_place=True)
-    net['fire6/conv3x3_2'] = L.Convolution(net['fire6/relu_conv1x1_1'], num_output=192, pad=1, kernel_size=3, **kwargs)
-    net['fire6/relu_conv3x3_2'] =  L.ReLU(net['fire6/conv3x3_2'], in_place=True)
-    expand_fire6.append(net['fire6/relu_conv1x1_2'])
-    expand_fire6.append(net['fire6/relu_conv3x3_2'])
-    net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
-    #fire7
-    net['fire7/conv1x1_1'] = L.Convolution(net['fire6/concat'], num_output=48, pad=0, kernel_size=1, **kwargs)
-    net['fire7/relu_conv1x1_1'] = L.ReLU(net['fire7/conv1x1_1'], in_place=True)
-    expand_fire7 = []
-    net['fire7/conv1x1_2'] = L.Convolution(net['fire7/relu_conv1x1_1'], num_output=192, pad=0, kernel_size=1, **kwargs)
-    net['fire7/relu_conv1x1_2'] =  L.ReLU(net['fire7/conv1x1_2'], in_place=True)
-    net['fire7/conv3x3_2'] = L.Convolution(net['fire7/relu_conv1x1_1'], num_output=192, pad=1, kernel_size=3, **kwargs)
-    net['fire7/relu_conv3x3_2'] =  L.ReLU(net['fire7/conv3x3_2'], in_place=True)
-    expand_fire7.append(net['fire7/relu_conv1x1_2'])
-    expand_fire7.append(net['fire7/relu_conv3x3_2'])
-    net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
-    #fire8
-    net['fire8/conv1x1_1'] = L.Convolution(net['fire7/concat'], num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire8/relu_conv1x1_1'] = L.ReLU(net['fire8/conv1x1_1'], in_place=True)
-    expand_fire8 = []
-    expand_fire8_conv = []
-    net['fire8/conv1x1_2'] = L.Convolution(net['fire8/relu_conv1x1_1'], num_output=256, pad=0, kernel_size=1, **kwargs)
-    net['fire8/relu_conv1x1_2'] =  L.ReLU(net['fire8/conv1x1_2'], in_place=True)
-    net['fire8/conv3x3_2'] = L.Convolution(net['fire8/relu_conv1x1_1'], num_output=256, pad=1, kernel_size=3, **kwargs)
-    net['fire8/relu_conv3x3_2'] =  L.ReLU(net['fire8/conv3x3_2'], in_place=True)
-    expand_fire8.append(net['fire8/relu_conv1x1_2'])
-    expand_fire8.append(net['fire8/relu_conv3x3_2'])
-
-    expand_fire8_conv.append(net['fire8/conv1x1_2'])
-    expand_fire8_conv.append(net['fire8/conv3x3_2'])
-
+    ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand3x3', use_bn=True, use_relu=True,
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+    expand_fire8.append(net['fire8/expand1x1'])
+    expand_fire8.append(net['fire8/expand3x3'])
     net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)
-    net['fire8/conv'] = L.Concat(*expand_fire8_conv, axis=1)   
-    #pool8
-    net.pool8 = L.Pooling(net['fire8/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
+
     #fire9
-    net['fire9/conv1x1_1'] = L.Convolution(net.pool8, num_output=64, pad=0, kernel_size=1, **kwargs)
-    net['fire9/relu_conv1x1_1'] = L.ReLU(net['fire9/conv1x1_1'], in_place=True)
+    ConvBNLayer(net, 'fire8/concat', 'fire9/squeeze1x1', use_bn=True, use_relu=True,
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
     expand_fire9 = []
-    net['fire9/conv1x1_2'] = L.Convolution(net['fire9/relu_conv1x1_1'], num_output=256, pad=0, kernel_size=1, **kwargs)
-    net['fire9/relu_conv1x1_2'] =  L.ReLU(net['fire9/conv1x1_2'], in_place=True)
-    net['fire9/conv3x3_2'] = L.Convolution(net['fire9/relu_conv1x1_1'], num_output=256, pad=1, kernel_size=3, **kwargs)
-    net['fire9/relu_conv3x3_2'] =  L.ReLU(net['fire9/conv3x3_2'], in_place=True)
-    expand_fire9.append(net['fire9/relu_conv1x1_2'])
-    expand_fire9.append(net['fire9/relu_conv3x3_2'])
-    net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)  
+    ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand1x1', use_bn=True, use_relu=True,
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand3x3', use_bn=True, use_relu=True,
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+    expand_fire9.append(net['fire9/expand1x1'])
+    expand_fire9.append(net['fire9/expand3x3'])
+    net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)
+
     #drop9
     net.drop9 = L.Dropout(net['fire9/concat'], dropout_ratio=0.5, in_place=True)
     #conv_final
-    kwargsGS = {
-        'param': dict(lr_mult=1, decay_mult=1),
-        'weight_filler': dict(type='gaussian', mean=0, std=0.01),
-        'bias_term': True,
-        }
-    net.conv_final = L.Convolution(net.drop9, num_output=1000, pad=1, kernel_size=1, **kwargsGS)
-    net.relu_conv_final = L.ReLU(net.conv_final, in_place=True)
-    #global pooling
-    #net.pool_final = L.Pooling(net.relu_conv_final, pool=P.Pooling.AVE, global_pooling=True)
+
+    ConvBNLayer(net, 'drop9', 'conv10', use_bn=True, use_relu=True,
+        num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+
+    #get theta
+    net.theta = L.InnerProduct(net.conv10,num_output=6,**kwargs)
 
     return net
 
@@ -1429,13 +1311,13 @@ def HGStacked(net, from_layer, freeze=True):
     bn_postfix = ''
     scale_prefix = 'scale_'
     scale_postfix = ''
-    ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
+    ConvBNLayer(net, from_layer, 'conv1_b', use_bn=True, use_relu=True,
         num_output=64, kernel_size=7, pad=3, stride=2,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
         scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
 
-    ResBody(net, 'conv1', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'conv1_b', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
 
     net.pool1 = L.Pooling(net.res1, pool=P.Pooling.MAX, kernel_size=2, stride=2)
 

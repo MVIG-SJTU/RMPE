@@ -13,9 +13,9 @@ import subprocess
 import sys
 
 # Add STN layers on top of a "base" network (e.g. Stacked Hourglass).
-def AddSTN(net,from_layer):
+def AddSTN(net,from_layer,freeze=False):
     # Add locnet, we use SqueezeNet here
-    SqueezeNetBody(net,from_layer)
+    SqueezeNetBody(net,from_layer,for_HG_module=True, freeze=freeze)
     bottom = []
     bottom.append(net[from_layer])
     bottom.append(net.theta)
@@ -78,7 +78,7 @@ job_file = "{}/{}.sh".format(save_dir, model_name)
 
 
 # The pretrained model. We use the Fully convolutional reduced (atrous) VGGNet.
-pretrain_model = "/media/fred/linux/shg_final.caffemodel"
+pretrain_model = "/media/fred/linux/patch0.73.caffemodel"
 
 # Solver parameters.
 # Defining which GPUs to use.

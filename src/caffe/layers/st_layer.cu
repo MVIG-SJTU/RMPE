@@ -91,7 +91,7 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 	const Dtype* output_grid_data = output_grid.gpu_data();
 	
 	Dtype* full_theta_data = full_theta.mutable_gpu_data();
-	Dtype* full_gamma_data = full_gamma.mutable_gpu_data();
+	Dtype* full_gamma_data = full_gamma.mutable_cpu_data();
 	Dtype* input_grid_data = input_grid.mutable_gpu_data();
 	Dtype* V = top[0]->mutable_gpu_data();
 
@@ -115,13 +115,12 @@ void SpatialTransformerLayer<Dtype>::Forward_gpu(
 			++ k;
 		}
 	}
-
 	// For detransform, calculate gamma for de-transform
 	if(de_transform){
 		for(int i=0; i<N; i++){
 			double denom_ = full_gamma_data[6*i+0]*full_gamma_data[6*i+4] - full_gamma_data[6*i+1]*full_gamma_data[6*i+3];
-			if(denom_ == 0){
-				std::cout << "Singular matrix encountered. Do identity mapping." << std::endl;
+			if(denom_ == 0.0){
+				DLOG(INFO) << "Singular matrix encountered. Do identity mapping.";
 				full_gamma_data[6*i+0] = 1; full_gamma_data[6*i+1] = 0; full_gamma_data[6*i+2] = 0;
 				full_gamma_data[6*i+3] = 0; full_gamma_data[6*i+4] = 1; full_gamma_data[6*i+5] = 0;
 			}

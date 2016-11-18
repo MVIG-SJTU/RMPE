@@ -1141,33 +1141,33 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
 
     assert from_layer in net.keys()
     ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=3, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     net.pool1s = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire2
     ConvBNLayer(net, 'pool1s', 'fire2/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire2 = []
     ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand3x3', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire2.append(net['fire2/expand1x1'])
     expand_fire2.append(net['fire2/expand3x3'])
     net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
     #fire3
     ConvBNLayer(net, 'fire2/concat', 'fire3/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire3 = []
     ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand3x3', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire3.append(net['fire3/expand1x1'])
     expand_fire3.append(net['fire3/expand3x3'])
@@ -1176,28 +1176,28 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     net.pool3 = L.Pooling(net['fire3/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire4
     ConvBNLayer(net, 'pool3', 'fire4/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire4 = []
     ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand1x1', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand3x3', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire4.append(net['fire4/expand1x1'])
     expand_fire4.append(net['fire4/expand3x3'])
     net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
     #fire5
     ConvBNLayer(net, 'fire4/concat', 'fire5/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire5 = []
     ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand1x1', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand3x3', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
     expand_fire5.append(net['fire5/expand1x1'])
     expand_fire5.append(net['fire5/expand3x3'])
     net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
@@ -1205,56 +1205,56 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     net.pool5 = L.Pooling(net['fire5/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire6
     ConvBNLayer(net, 'pool5', 'fire6/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire6 = []
     ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand1x1', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand3x3', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire6.append(net['fire6/expand1x1'])
     expand_fire6.append(net['fire6/expand3x3'])
     net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
     #fire7
     ConvBNLayer(net, 'fire6/concat', 'fire7/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire7 = []
     ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand1x1', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand3x3', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
     expand_fire7.append(net['fire7/expand1x1'])
     expand_fire7.append(net['fire7/expand3x3'])
     net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
 
     #fire8
     ConvBNLayer(net, 'fire7/concat', 'fire8/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire8 = []
     ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand1x1', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand3x3', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
     expand_fire8.append(net['fire8/expand1x1'])
     expand_fire8.append(net['fire8/expand3x3'])
     net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)
 
     #fire9
     ConvBNLayer(net, 'fire8/concat', 'fire9/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     expand_fire9 = []
     ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand1x1', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand3x3', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
     expand_fire9.append(net['fire9/expand1x1'])
     expand_fire9.append(net['fire9/expand3x3'])
     net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)
@@ -1264,14 +1264,14 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     #conv_final
 
     ConvBNLayer(net, 'drop9', 'conv10', use_bn=True, use_relu=True,
-        num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=True, freeze=freeze)
+        num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
 
     #get theta
     kwargsfile = {
         'param': dict(lr_mult=1, decay_mult=1),
         'weight_filler': dict(type='constant', value=0),
         'bias_term': True,
-        'bias_filler': dict(type='file', file='examples/mppp/bias_init.txt')
+        'bias_filler': dict(type='file', file='examples/mppp/util/bias_init.txt')
         }
     net.theta = L.InnerProduct(net.conv10,num_output=6,**kwargsfile)
 

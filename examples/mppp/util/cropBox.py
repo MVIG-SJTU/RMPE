@@ -9,7 +9,7 @@ import os
 import numpy as np
 import math
 
-def cropBox(image, xmin, ymin, xmax, ymax, scale_width, scale_height):
+def cropBox(image, xmin, ymin, xmax, ymax):
     cropped_image = image[ymin:ymax,xmin:xmax,:]
     
     width = xmax - xmin

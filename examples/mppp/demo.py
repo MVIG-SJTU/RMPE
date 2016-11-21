@@ -150,5 +150,6 @@ for img_name in open('examples/mppp/util/demo_images.txt','r'):
 	            continue
 	        Color = Colors[partColor[point_pair[0]]]
 	        plt.plot([x1,x2], [y1,y2], color = Color, lw = 2)
+	        plt.axis('off')
 	plt.draw()
 	time.sleep(1)

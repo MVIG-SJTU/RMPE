@@ -1,43 +1,40 @@
-# SSD: Single Shot MultiBox Detector
+# RMPE: Regional Multi-person Pose Estimation
 
-By [Wei Liu](http://www.cs.unc.edu/~wliu/), [Dragomir Anguelov](http://research.google.com/pubs/DragomirAnguelov.html), [Dumitru Erhan](http://research.google.com/pubs/DumitruErhan.html), [Christian Szegedy](http://research.google.com/pubs/ChristianSzegedy.html), [Scott Reed](http://www-personal.umich.edu/~reedscot/), Cheng-Yang Fu, [Alexander C. Berg](http://acberg.com).
+By [Haoshu Fang](https://fang-haoshu.github.io), Shuqin Xie, [Cewu Lu](https://cvsjtu.wordpress.com/).
 
 ### Introduction
 
-SSD is an unified framework for object detection with a single network. You can use the code to train/evaluate a network for object detection task. For more details, please refer to our [arXiv paper](http://arxiv.org/abs/1512.02325).
+RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper](http://arxiv.org/abs/1512.02325).
 
 <p align="center">
-<img src="http://www.cs.unc.edu/~wliu/papers/ssd.png" alt="SSD Framework" width="600px">
+<img src="https://github.com/Fang-Haoshu/Fang-Haoshu.github.io/blob/master/images/publications/rmpe/framework.jpg" alt="RMPE Framework" width="600px">
 </p>
 
 <center>
 
-| System | VOC2007 test *mAP* | **FPS** (Titan X) | Number of Boxes |
+| Method | MPII full test *mAP* | s/frame |
 |:-------|:-----:|:-------:|:-------:|
-| [Faster R-CNN (VGG16)](https://github.com/ShaoqingRen/faster_rcnn) | 73.2 | 7 | 300 |
-| [Faster R-CNN (ZF)](https://github.com/ShaoqingRen/faster_rcnn) | 62.1 | 17 | 300 |
-| [YOLO](http://pjreddie.com/darknet/yolo/) | 63.4 | 45 | 98 |
-| [Fast YOLO](http://pjreddie.com/darknet/yolo/) | 52.7 | 155 | 98 |
-| SSD300 (VGG16) | 72.1 | 58 | 7308 |
-| SSD300 (VGG16, cuDNN v5) | 72.1 | 72 | 7308 |
-| SSD500 (VGG16) | **75.1** | 23 | 20097 |
+| [Iqbal&Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 7 |
+| [DeeperCut](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 | 
+| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **69.2** | **0.8** |
 
 </center>
 
-### Citing SSD
+### Citing RMPE
 
-Please cite SSD in your publications if it helps your research:
+Please cite RMPE in your publications if the code or paper helps your research:
 
-    @article{liu15ssd,
-      Title = {{SSD}: Single Shot MultiBox Detector},
-      Author = {Liu, Wei and Anguelov, Dragomir and Erhan, Dumitru and Szegedy, Christian and Reed, Scott and Fu, Cheng-Yang and Berg, Alexander C.},
-      Journal = {arXiv preprint arXiv:1512.02325},
-      Year = {2015}
+    @article{fang16rmpe,
+      Title = {{RMPE}: Regional Multi-person Pose Estimation},
+      Author = {Haoshu Fang, Shuqin Xie and Cewu Lu },
+      Journal = {},
+      Year = {2016}
     }
 
 ### Contents
 1. [Installation](#installation)
 2. [Preparation](#preparation)
+3. [Demo](#demo)
 3. [Train/Eval](#traineval)
 4. [Models](#models)
 
@@ -46,7 +43,7 @@ Please cite SSD in your publications if it helps your research:
   ```Shell
   git clone https://github.com/weiliu89/caffe.git
   cd caffe
-  git checkout ssd
+  git checkout rmpe
   ```
 
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
@@ -68,31 +65,37 @@ Please cite SSD in your publications if it helps your research:
 ### Preparation
 1. Download [fully convolutional reduced (atrous) VGGNet](https://gist.github.com/weiliu89/2ed6e13bfd5b57cf81d6). By default, we assume the model is stored in `$CAFFE_ROOT/models/VGGNet/`
 
-2. Download VOC2007 and VOC2012 dataset. By default, we assume the data is stored in `$HOME/data/`
+2. Download [MPII dataset](http://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz). By default, untar the file and make a soft link to `$CAFFE_ROOT/data/MPII/images`. You can jump this step if you only need to run the demo.
+
+### Demo
+Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
+1. Run the ipython notebook
   ```Shell
-  # Download the data.
-  cd $HOME/data
-  wget http://host.robots.ox.ac.uk/pascal/VOC/voc2012/VOCtrainval_11-May-2012.tar
-  wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtrainval_06-Nov-2007.tar
-  wget http://host.robots.ox.ac.uk/pascal/VOC/voc2007/VOCtest_06-Nov-2007.tar
-  # Extract the data.
-  tar -xvf VOCtrainval_11-May-2012.tar
-  tar -xvf VOCtrainval_06-Nov-2007.tar
-  tar -xvf VOCtest_06-Nov-2007.tar
+  # It will show how our whole framework works
+  cd $CAFFE_ROOT
+  jupyter notebook examples/rmpe/Regional Multi-person Pose Estimation.ipynb
+  python examples/ssd/ssd_pascal.py
+  ```
+  If you don't have time to train your model, you can download a pre-trained model at [here](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_VOC0712_SSD_300x300.tar.gz).
+
+2. Run the python program
+  ```Shell
+  # It is basically the same as the ipython notebook, shows more results with a loop.
+  python examples/rmpe/demo.py
   ```
 
-3. Create the LMDB file.
+3. Test your model using a webcam. Note: press <kbd>esc</kbd> to stop.
   ```Shell
-  cd $CAFFE_ROOT
-  # Create the trainval.txt, test.txt, and test_name_size.txt in data/VOC0712/
-  ./data/VOC0712/create_list.sh
-  # You can modify the parameters in create_data.sh if needed.
-  # It will create lmdb files for trainval and test with encoded original image:
-  #   - $HOME/data/VOCdevkit/VOC0712/lmdb/VOC0712_trainval_lmdb
-  #   - $HOME/data/VOCdevkit/VOC0712/lmdb/VOC0712_test_lmdb
-  # and make soft links at examples/VOC0712/
-  ./data/VOC0712/create_data.sh
+  # If you would like to attach a webcam to a model you trained, you can do:
+  python examples/ssd/ssd_pascal_webcam.py
   ```
+  [Here](https://drive.google.com/file/d/0BzKzrI_SkD1_R09NcjM1eElLcWc/view) is a demo video of running a SSD500 model trained on [MSCOCO](http://mscoco.org) dataset.
+
+4. Check out `examples/ssd_detect.ipynb` or `examples/ssd/ssd_detect.cpp` on how to detect objects using a SSD model.
+
+5. To train on other dataset, please refer to data/OTHERDATASET for more details.
+We currently add support for MSCOCO and ILSVRC2016.
+
 
 ### Train/Eval
 1. Train your model and evaluate the model on the fly.

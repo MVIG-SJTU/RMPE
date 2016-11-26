@@ -100,7 +100,7 @@ if num_gpus > 0:
   device_id = int(gpulist[0])
 
 # Evaluate on whole test set.
-num_test_image = 3
+num_test_image = 300
 test_batch_size = 1
 test_iter = num_test_image / test_batch_size
 
@@ -167,7 +167,7 @@ net = caffe.NetSpec()
 net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=True, visualise=False,
         heatmap_data_param=train_heatmap_data_param)
 
-AddSTN(net,'data')
+AddSTN(net,'data',freeze=True)
 HGStacked(net, from_layer='stn', freeze=True)
 AddSDTN(net,net.keys()[-1])
 
@@ -187,7 +187,7 @@ net = caffe.NetSpec()
 net.data, net.label = CreateHeatmapDataLayer(output_label=True, train=False, visualise=False,
         heatmap_data_param=test_heatmap_data_param)
 
-AddSTN(net,'data')
+AddSTN(net,'data',freeze=True)
 HGStacked(net, from_layer='stn', freeze=True)
 AddSDTN(net,net.keys()[-1])
 

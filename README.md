@@ -63,75 +63,76 @@ Please cite RMPE in your publications if the code or paper helps your research:
   ```
 
 ### Preparation
-1. Download [fully convolutional reduced (atrous) VGGNet](https://gist.github.com/weiliu89/2ed6e13bfd5b57cf81d6). By default, we assume the model is stored in `$CAFFE_ROOT/models/VGGNet/`
+#### For demo only
+1. Download pre-trained [human detector]() and [SPPE+SSTN model](). By default, we assume the models are stored in `$CAFFE_ROOT/models/VGG_SSD/` and `$CAFFE_ROOT/models/SPPE/` accordingly.
 
-2. Download [MPII dataset](http://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz). By default, untar the file and make a soft link to `$CAFFE_ROOT/data/MPII/images`. You can jump this step if you only need to run the demo.
+#### For train/eval
+1. Download [fully convolutional reduced (atrous) VGGNet](https://gist.github.com/weiliu89/2ed6e13bfd5b57cf81d6). By default, we assume the model is stored in `$CAFFE_ROOT/models/VGG_SSD/`
+
+2. Download [MPII images](http://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz) and [COCO14 training set](http://msvocds.blob.core.windows.net/coco2014/train2014.zip). By default, we assume the images are stored in `/data/MPII_COCO14/images/`.
+
+3. Download [MPII_COCO14 Annotations](). By default, we assume the XMLs are stored in the `/data/MPII_COCO14/Annotations/`.
 
 ### Demo
 Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
 1. Run the ipython notebook
   ```Shell
-  # It will show how our whole framework works
+  # It will show you how our whole framework works
   cd $CAFFE_ROOT
   jupyter notebook examples/rmpe/Regional Multi-person Pose Estimation.ipynb
   python examples/ssd/ssd_pascal.py
   ```
-  If you don't have time to train your model, you can download a pre-trained model at [here](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_VOC0712_SSD_300x300.tar.gz).
 
 2. Run the python program
   ```Shell
-  # It is basically the same as the ipython notebook, shows more results with a loop.
+  # It will show you more results.
   python examples/rmpe/demo.py
   ```
 
-3. Test your model using a webcam. Note: press <kbd>esc</kbd> to stop.
-  ```Shell
-  # If you would like to attach a webcam to a model you trained, you can do:
-  python examples/ssd/ssd_pascal_webcam.py
-  ```
-  [Here](https://drive.google.com/file/d/0BzKzrI_SkD1_R09NcjM1eElLcWc/view) is a demo video of running a SSD500 model trained on [MSCOCO](http://mscoco.org) dataset.
-
-4. Check out `examples/ssd_detect.ipynb` or `examples/ssd/ssd_detect.cpp` on how to detect objects using a SSD model.
-
-5. To train on other dataset, please refer to data/OTHERDATASET for more details.
-We currently add support for MSCOCO and ILSVRC2016.
-
-
 ### Train/Eval
-1. Train your model and evaluate the model on the fly.
+1. Train human detector. 
+We use the data in MPII and COCO14 to train our human detector. We have already create the train/val list in `CAFFE_ROOT/data/MPII_COCO14` and release our script in `CAFFE_ROOT/examples/rmpe`, so basically what you need to do will be something like
   ```Shell
+  # First create the LMDB file.
+  cd $CAFFE_ROOT
+  # You can modify the parameters in create_data.sh if needed.
+  # It will create lmdb files for trainval and test with encoded original image:
+  #   - /data/MPII_COCO14/lmdb/MPII_COCO14_trainval_lmdb
+  #   - /data/MPII_COCO14/lmdb/MPII_COCO14_test_lmdb
+  # and make soft links at examples/MPII_COCO14/
+  ./data/MPII_COCO14/create_data.sh
   # It will create model definition files and save snapshot models in:
-  #   - $CAFFE_ROOT/models/VGGNet/VOC0712/SSD_300x300/
+  #   - $CAFFE_ROOT/models/VGG_SSD/MPII_COCO14/SSD_500x500/
   # and job file, log file, and the python script in:
-  #   - $CAFFE_ROOT/jobs/VGGNet/VOC0712/SSD_300x300/
+  #   - $CAFFE_ROOT/jobs/VGG_SSD/MPII_COCO14/SSD_500x500/
   # and save temporary evaluation results in:
-  #   - $HOME/data/VOCdevkit/results/VOC2007/SSD_300x300/
-  # It should reach 72.* mAP at 60k iterations.
-  python examples/ssd/ssd_pascal.py
+  #   - $HOME/data/MPII_COCO14/results/SSD_500x500/
+  # It should reach 85.* mAP at 60k iterations.
+  python examples/rmpe/ssd_pascal_MPII_COCO14VGG.py
   ```
-  If you don't have time to train your model, you can download a pre-trained model at [here](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_VOC0712_SSD_300x300.tar.gz).
 
-2. Evaluate the most recent snapshot.
+2. Train SPPE+SSTN.
+This part of our model is implemented in Torch7. Please refer to [this repo]() for more details.
+We will call the directory that you cloned the repo into `$SPPE_ROOT`.
+Note that I am currently working on an implementation in Caffe. The script may come out soon.
+
+
+3. Evaluate the model. You can modify line 45 in `demo.py` to evaluate our framework on whole test set. But the results may be slightly different from our work. To reproduce our results reported in our paper:
   ```Shell
-  # If you would like to test a model you trained, you can do:
-  python examples/ssd/score_ssd_pascal.py
+  # First get the result of human detector
+  cd $CAFFE_ROOT
+  jupyter notebook examples/rmpe/human_detection.ipynb
+  # Then move the results to $SPPE_ROOT/predict/annot/
+  mv examples/rmpe/mpii-test0.09 $SPPE_ROOT/predict/annot/
+  # Next, do single person human estimation
+  cd $SPPE_ROOT/predict
+  th main.lua predict-test
+  #Finally, do pose NMS and write results to .mat
+  python batch_nms.py
+
   ```
 
-3. Test your model using a webcam. Note: press <kbd>esc</kbd> to stop.
-  ```Shell
-  # If you would like to attach a webcam to a model you trained, you can do:
-  python examples/ssd/ssd_pascal_webcam.py
-  ```
-  [Here](https://drive.google.com/file/d/0BzKzrI_SkD1_R09NcjM1eElLcWc/view) is a demo video of running a SSD500 model trained on [MSCOCO](http://mscoco.org) dataset.
+## Acknowledgements ##
 
-4. Check out `examples/ssd_detect.ipynb` or `examples/ssd/ssd_detect.cpp` on how to detect objects using a SSD model.
-
-5. To train on other dataset, please refer to data/OTHERDATASET for more details.
-We currently add support for MSCOCO and ILSVRC2016.
-
-### Models
-1. Models trained on VOC0712: [SSD300](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_VOC0712_SSD_300x300.tar.gz), [SSD500](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_VOC0712_SSD_500x500.tar.gz)
-
-2. Models trained on MSCOCO trainval35k: [SSD300](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_coco_SSD_300x300.tar.gz), [SSD500](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_coco_SSD_500x500.tar.gz)
-
-3. Models trained on ILSVRC2015 trainval1: [SSD300](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_ilsvrc15_SSD_300x300.tar.gz), [SSD500](http://www.cs.unc.edu/~wliu/projects/SSD/models_VGGNet_ilsvrc15_SSD_500x500.tar.gz) (46.4 mAP on val2)
+Thanks to [Wei Liu](https://github.com/weiliu89/caffe/tree/ssd), [Alejandro Newell](https://github.com/anewell/pose-hg-train), [Pfister, T.](https://github.com/tpfister/caffe-heatmap), [Kaichun Mo](https://github.com/daerduoCarey/SpatialTransformerLayer), [Maxime Oquab](https://github.com/qassemoquab/stnbhwd) for contributing their codes. 
+Thanks to the authors of Caffe and Torch7!

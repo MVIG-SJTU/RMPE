@@ -75,7 +75,8 @@ Please cite RMPE in your publications if the code or paper helps your research:
 
 ### Demo
 Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
-1. Run the ipython notebook. It will show you how our whole framework works.
+1. Run the ipython notebook. It will show you how our whole framework works
+
   ```Shell
   cd $CAFFE_ROOT
   # make a soft link to the images
@@ -83,7 +84,7 @@ Our experiments use both Caffe and Torch7. But we implement the whole framework 
   jupyter notebook examples/rmpe/Regional\ Multi-person\ Pose\ Estimation.ipynb
   ```
 
-2. Run the python program for more results.
+2. Run the python program for more results
 
   ```Shell
   python examples/rmpe/demo.py

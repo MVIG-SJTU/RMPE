@@ -75,17 +75,16 @@ Please cite RMPE in your publications if the code or paper helps your research:
 
 ### Demo
 Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
-1. Run the ipython notebook
+1. Run the ipython notebook. It will show you how our whole framework works.
   ```Shell
-  # It will show you how our whole framework works
   cd $CAFFE_ROOT
+  # make a soft link to the images
+  ln -s /data/MPII_COCO14/images/ data/MPII/images
   jupyter notebook examples/rmpe/Regional Multi-person Pose Estimation.ipynb
-  python examples/ssd/ssd_pascal.py
   ```
 
-2. Run the python program
+2. Run the python program for more results.
   ```Shell
-  # It will show you more results.
   python examples/rmpe/demo.py
   ```
 

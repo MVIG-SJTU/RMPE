@@ -14,7 +14,7 @@ RMPE is a two steps framework for the task of multi-person pose estimation. You 
 
 | Method | MPII full test *mAP* | s/frame |
 |:-------|:-----:|:-------:|:-------:|
-| [Iqbal&Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 7 |
+| [Iqbal&Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 10 |
 | [DeeperCut](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 | 
 | **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **69.2** | **0.8** |
 
@@ -35,8 +35,8 @@ Please cite RMPE in your publications if the code or paper helps your research:
 1. [Installation](#installation)
 2. [Preparation](#preparation)
 3. [Demo](#demo)
-3. [Train/Eval](#traineval)
-4. [Models](#models)
+4. [Train/Eval](#traineval)
+5. [Acknowledgements](#models)
 
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`

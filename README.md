@@ -80,9 +80,8 @@ Our experiments use both Caffe and Torch7. But we implement the whole framework 
   cd $CAFFE_ROOT
   # make a soft link to the images
   ln -s /data/MPII_COCO14/images/ data/MPII/images
-  jupyter notebook examples/rmpe/Regional Multi-person Pose Estimation.ipynb
+  jupyter notebook examples/rmpe/Regional\ Multi-person\ Pose\ Estimation.ipynb
   ```
-
 
 2. Run the python program for more results.
   ```Shell

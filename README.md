@@ -4,7 +4,7 @@ By [Haoshu Fang](https://fang-haoshu.github.io), Shuqin Xie, [Cewu Lu](https://c
 
 ### Introduction
 
-RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper](http://arxiv.org/abs/1512.02325).
+RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper]().
 
 <p align="center">
 <img src="https://github.com/Fang-Haoshu/Fang-Haoshu.github.io/blob/master/images/publications/rmpe/framework.jpg" alt="RMPE Framework" width="600px">

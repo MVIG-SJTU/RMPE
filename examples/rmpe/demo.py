@@ -122,8 +122,7 @@ for img_name in open('examples/mppp/util/demo_images.txt','r'):#for img_name in 
 	    bboxes.append([xmin,ymin,xmax,ymax])
 
 	#run pose level NMS with threshold of number of match keypoints
-	matchThreds = 5
-	preds, scores = PCK_pose_NMS(preds_noNMS, scores_noNMS, bboxes, matchThreds)
+	preds, scores = PCK_pose_NMS(preds_noNMS, scores_noNMS, bboxes)
 
 
 

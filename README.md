@@ -36,7 +36,7 @@ Please cite RMPE in your publications if the code or paper helps your research:
 2. [Preparation](#preparation)
 3. [Demo](#demo)
 4. [Train/Eval](#traineval)
-5. [Acknowledgements](#models)
+5. [Acknowledgements](#acknowledgements)
 
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
@@ -64,14 +64,14 @@ Please cite RMPE in your publications if the code or paper helps your research:
 
 ### Preparation
 #### For demo only
-1. Download pre-trained [human detector]() and [SPPE+SSTN model](). By default, we assume the models are stored in `$CAFFE_ROOT/models/VGG_SSD/` and `$CAFFE_ROOT/models/SPPE/` accordingly.
+1. Download pre-trained human detector([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9Pck8tZW1wMVlWNjA)|[Baidu cloud](http://pan.baidu.com/s/1hssOFWS)) and SPPE+SSTN model([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9PejV6OUZhUllzQWs)|[Baidu cloud](http://pan.baidu.com/s/1geVQkKj)). By default, we assume the models are stored in `$CAFFE_ROOT/models/VGG_SSD/` and `$CAFFE_ROOT/models/SPPE/` accordingly.
 
 #### For train/eval
 1. Download [fully convolutional reduced (atrous) VGGNet](https://gist.github.com/weiliu89/2ed6e13bfd5b57cf81d6). By default, we assume the model is stored in `$CAFFE_ROOT/models/VGG_SSD/`
 
 2. Download [MPII images](http://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz) and [COCO14 training set](http://msvocds.blob.core.windows.net/coco2014/train2014.zip). By default, we assume the images are stored in `/data/MPII_COCO14/images/`.
 
-3. Download [MPII_COCO14 Annotations](). By default, we assume the XMLs are stored in the `/data/MPII_COCO14/Annotations/`.
+3. Download MPII_COCO14 Annotations([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9PWFhfdzR6S1g1bHc)|[Baidu cloud](http://pan.baidu.com/s/1i4911zB)). By default, we assume the XMLs are stored in the `/data/MPII_COCO14/Annotations/`.
 
 ### Demo
 Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
@@ -82,11 +82,7 @@ Our experiments use both Caffe and Torch7. But we implement the whole framework 
   # make a soft link to the images
   ln -s /data/MPII_COCO14/images/ data/MPII/images
   jupyter notebook examples/rmpe/Regional\ Multi-person\ Pose\ Estimation.ipynb
-  ```
-
-2. Run the python program for more results
-
-  ```Shell
+  # run the python program for more results
   python examples/rmpe/demo.py
   ```
 
@@ -133,7 +129,7 @@ Note that I am currently working on an implementation in Caffe. The script may c
 
   ```
 
-## Acknowledgements ##
+### Acknowledgements
 
 Thanks to [Wei Liu](https://github.com/weiliu89/caffe/tree/ssd), [Alejandro Newell](https://github.com/anewell/pose-hg-train), [Pfister, T.](https://github.com/tpfister/caffe-heatmap), [Kaichun Mo](https://github.com/daerduoCarey/SpatialTransformerLayer), [Maxime Oquab](https://github.com/qassemoquab/stnbhwd) for contributing their codes. 
 Thanks to the authors of Caffe and Torch7!

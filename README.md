@@ -124,9 +124,12 @@ Note that I am currently working on an implementation in Caffe. The script may c
   # Next, do single person human estimation
   cd $SPPE_ROOT/predict
   th main.lua predict-test
-  #Finally, do pose NMS and write results to .mat
+  #Finally, do pose NMS
   python batch_nms.py
-
+  #our result is stored in txt format, to evaluate, Download MPII [toolkit](http://human-pose.mpi-inf.mpg.de/#evaluation) and put it in current directory
+  matlab
+  #In matlab
+  set_pred()
   ```
 
 ### Acknowledgements

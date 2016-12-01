@@ -41,9 +41,8 @@ Please cite RMPE in your publications if the code or paper helps your research:
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
   ```Shell
-  git clone https://github.com/weiliu89/caffe.git
-  cd caffe
-  git checkout rmpe
+  git clone https://github.com/Fang-Haoshu/rmpe.git
+  cd rmpe
   ```
 
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
@@ -109,7 +108,7 @@ We use the data in MPII and COCO14 to train our human detector. We have already 
   ```
 
 2. Train SPPE+SSTN.
-This part of our model is implemented in Torch7. Please refer to [this repo]() for more details.
+This part of our model is implemented in Torch7. Please refer to [this repo](https://github.com/Fang-Haoshu/multi-human-pose) for more details.
 We will call the directory that you cloned the repo into `$SPPE_ROOT`.
 Note that I am currently working on an implementation in Caffe. The script may come out soon.
 

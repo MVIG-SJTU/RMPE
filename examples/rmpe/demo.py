@@ -42,7 +42,8 @@ det_net.blobs['data'].reshape(1,3,image_resize,image_resize)
 
 configThred = 0.1
 NMSThred = 0.45
-for img_name in open('examples/mppp/util/demo_images.txt','r'):#for img_name in open('examples/mppp/util/test_images.txt','r'):
+#for img_name in open('examples/mppp/util/test_images.txt','r'):  #Use this line to evaluate on the whole test test.
+for img_name in open('examples/mppp/util/demo_images.txt','r'):
 	# check if image exists
 	filename = os.path.join(img_dir, img_name.rstrip('\n'))
 	if (os.path.isfile(filename) == False):

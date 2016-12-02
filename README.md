@@ -4,7 +4,7 @@ By [Haoshu Fang](https://fang-haoshu.github.io), Shuqin Xie, [Cewu Lu](https://c
 
 ### Introduction
 
-RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper]().
+RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper](https://arxiv.org/abs/1612.00137v1).
 
 <p align="center">
 <img src="https://github.com/Fang-Haoshu/Fang-Haoshu.github.io/blob/master/images/publications/rmpe/framework.jpg" alt="RMPE Framework" width="600px">
@@ -27,7 +27,7 @@ Please cite RMPE in your publications if the code or paper helps your research:
     @article{fang16rmpe,
       Title = {{RMPE}: Regional Multi-person Pose Estimation},
       Author = {Haoshu Fang, Shuqin Xie and Cewu Lu },
-      Journal = {},
+      Journal = {arXiv preprint arXiv:1612.00137},
       Year = {2016}
     }
 
@@ -78,7 +78,7 @@ Our experiments use both Caffe and Torch7. But we implement the whole framework 
 
   ```Shell
   cd $CAFFE_ROOT
-  # make a soft link to the images
+  # it shows how our framework works
   jupyter notebook examples/rmpe/Regional\ Multi-person\ Pose\ Estimation.ipynb
   # run the python program for more results
   python examples/rmpe/demo.py

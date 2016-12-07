@@ -41,8 +41,12 @@ Please cite RMPE in your publications if the code or paper helps your research:
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
   ```Shell
-  git clone https://github.com/Fang-Haoshu/rmpe.git
-  cd rmpe
+  git clone git@github.com:MVLG/RMPE.git
+  cd RMPE
+  ```
+  you can also download code from 
+  ```shell
+  git clone git@github.com:Fang-Haoshu/RMPE.git
   ```
 
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.

@@ -615,7 +615,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
             const int label_img_size = label_channel_size * label_num_channels / 2;
             cv::Mat dataMatrix = cv::Mat::zeros(label_height, label_width, CV_32FC1);
             float label_resize_fact = (float) label_height / (float) outsize;
-            float sigma = 3;
+            float sigma = 1;
 
             for (int idx_ch = 0; idx_ch < label_num_channels / 2; idx_ch++)
             {
@@ -641,8 +641,7 @@ void DataHeatmapLayer<Dtype>::load_batch(Batch<Dtype>* batch) {
                         for (int j = 0; j < label_width; j++)
                         {
                             int label_idx = idx_img_aug * label_img_size + idx_ch * label_channel_size + i * label_width + j;
-                            float gaussian = ( 1 / ( sigma * sqrt(2 * M_PI) ) ) * exp( -0.5 * ( pow(i - y, 2.0) + pow(j - x, 2.0) ) * pow(1 / sigma, 2.0) );
-                            gaussian = 7.52 * gaussian;
+                            float gaussian = exp( -0.5 * ( pow(i - y, 2.0) + pow(j - x, 2.0) ) * pow(1 / sigma, 2.0) );
                             top_label[label_idx] = gaussian;
 
                             dataMatrix.at<float>((int)i, (int)j) += gaussian;

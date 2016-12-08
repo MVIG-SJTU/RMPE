@@ -247,9 +247,15 @@ void EuclideanLossHeatmapLayer<Dtype>::Backward_cpu(const vector<Blob<Dtype>*>& 
 
     // strictly speaking, should be normalising by (2 * channels) due to 1/2 multiplier in front of the loss
     //Dtype loss = caffe_cpu_dot(count, diff_.cpu_data(), diff_.cpu_data()) / Dtype(channels);
-
+    const Dtype alpha = 2 / (count/bottom[0]->num());
+    caffe_cpu_axpby(
+          count,              // count
+          alpha,                              // alpha
+          diff_.cpu_data(),                   // a
+          Dtype(0),                           // beta
+          bottom[0]->mutable_cpu_diff());  // b
     // copy the gradient
-    memcpy(bottom[0]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
+    //memcpy(bottom[0]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
     //memcpy(bottom[1]->mutable_cpu_diff(), diff_.cpu_data(), sizeof(Dtype) * count);
 }
 
@@ -265,7 +271,20 @@ template <typename Dtype>
 void EuclideanLossHeatmapLayer<Dtype>::Backward_gpu(const vector<Blob<Dtype>*>& top,
         const vector<bool>& propagate_down, const vector<Blob<Dtype>*>& bottom)
 {
-    Backward_cpu(top, propagate_down, bottom);
+    const int count = bottom[0]->count();
+    //const int channels = bottom[0]->channels();
+
+    caffe_sub(count, bottom[0]->cpu_data(), bottom[1]->cpu_data(), diff_.mutable_cpu_data());
+
+    // strictly speaking, should be normalising by (2 * channels) due to 1/2 multiplier in front of the loss
+    //Dtype loss = caffe_cpu_dot(count, diff_.cpu_data(), diff_.cpu_data()) / Dtype(channels);
+    //const Dtype alpha = 2 / (count/bottom[0]->num());
+    caffe_gpu_axpby(
+          count,              // count
+          Dtype(2),                              // alpha
+          diff_.gpu_data(),                   // a
+          Dtype(0),                           // beta
+          bottom[0]->mutable_gpu_diff());  // b
 }
 
 

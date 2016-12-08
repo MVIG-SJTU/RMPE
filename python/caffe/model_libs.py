@@ -29,17 +29,14 @@ def UnpackVariable(var, num):
     return ret
 
 def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
-    kernel_size, pad, stride, for_HG_module=False, use_scale=True, eps=0.00001, conv_prefix='', conv_postfix='',
+    kernel_size, pad, stride, for_HG_module=False, use_scale=True, eps=0.001, conv_prefix='', conv_postfix='',
     bn_prefix='', bn_postfix='_bn', scale_prefix='', scale_postfix='_scale',
-    bias_prefix='', bias_postfix='_bias', freeze=False):
-  if freeze:
-    lr_mult=0
-  else:
-    lr_mult=1
+    bias_prefix='', bias_postfix='_bias'):
+
   if use_bn:
     if for_HG_module:
       kwargs = {
-        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=2*lr_mult, decay_mult=0)],
+        'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
         'weight_filler': dict(type='gaussian', std=0.01),
         'bias_filler': dict(type='constant', value=0),
         'bias_term': True,
@@ -47,7 +44,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     # parameters for convolution layer with batchnorm.
     else:
       kwargs = {
-        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult)],
+        'param': [dict(lr_mult=1, decay_mult=1)],
         'weight_filler': dict(type='gaussian', std=0.01),
         'bias_term': False,
         }
@@ -60,18 +57,18 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     if use_scale:
       sb_kwargs = {
           'bias_term': True,
-          'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=lr_mult, decay_mult=0)],
+          'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=1, decay_mult=0)],
           'filler': dict(type='constant', value=1.0),
           'bias_filler': dict(type='constant', value=0.0),
           }
     else:
       bias_kwargs = {
-          'param': [dict(lr_mult=lr_mult, decay_mult=0)],
+          'param': [dict(lr_mult=1, decay_mult=0)],
           'filler': dict(type='constant', value=0.0),
           }
   else:
     kwargs = {
-        'param': [dict(lr_mult=lr_mult, decay_mult=lr_mult), dict(lr_mult=2*lr_mult, decay_mult=0)],
+        'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
         'weight_filler': dict(type='xavier'),
         'bias_filler': dict(type='constant', value=0)
         }
@@ -89,11 +86,11 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
         stride_h=stride_h, stride_w=stride_w, **kwargs)
   if use_bn:
     bn_name = '{}{}{}'.format(bn_prefix, out_layer, bn_postfix)
-    net[bn_name] = L.BatchNorm(net[conv_name], in_place=True, use_global_stats=for_HG_module,**bn_kwargs)
+    net[bn_name] = L.BatchNorm(net[conv_name], in_place=True,**bn_kwargs)
     if use_scale:
       sb_name = '{}{}{}'.format(scale_prefix, out_layer, scale_postfix)
       if for_HG_module:
-        net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False, param=[dict(lr_mult=0, decay_mult=0),dict(lr_mult=0, decay_mult=0)])
+        net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False, param=[dict(lr_mult=1, decay_mult=0),dict(lr_mult=1, decay_mult=0)])
       else:
         net[sb_name] = L.Scale(net[bn_name], in_place=True, **sb_kwargs)
     else:
@@ -103,7 +100,7 @@ def ConvBNLayer(net, from_layer, out_layer, use_bn, use_relu, num_output,
     relu_name = '{}_relu'.format(conv_name)
     net[relu_name] = L.ReLU(net[conv_name], in_place=True)
 
-def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, freeze=False, for_HG_module=False):
+def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch1, for_HG_module=False):
   # ResBody(net, 'pool1', '2a', 64, 64, 256, 1, True)
 
   conv_prefix = 'res{}_'.format(block_name)
@@ -121,13 +118,13 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
         num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,for_HG_module=for_HG_module,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     else:
       ConvBNLayer(net, from_layer, branch_name, use_bn=True, use_relu=False,
         num_output=out2c, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     branch1 = '{}{}'.format(conv_prefix, branch_name)
   else:
     branch1 = from_layer
@@ -135,12 +132,12 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
   if for_HG_module:
     bn_kwargs = {
         'param': [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)],
-        'eps': 0.00001,
+        'eps': 0.001,
       }
     bn_name = '{}_bn'.format(from_layer)
-    net[bn_name] = L.BatchNorm(net[from_layer], use_global_stats=for_HG_module, **bn_kwargs)
+    net[bn_name] = L.BatchNorm(net[from_layer], **bn_kwargs)
     sb_name = '{}_scale'.format(bn_name)
-    net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False,param=[dict(lr_mult=0, decay_mult=0),dict(lr_mult=0, decay_mult=0)])
+    net[sb_name] = L.EltwiseAffine(net[bn_name], in_place=True, channel_shared=False,param=[dict(lr_mult=1, decay_mult=0),dict(lr_mult=1, decay_mult=0)])
     relu_name = '{}_relu'.format(sb_name)
     net[relu_name] = L.ReLU(net[sb_name],in_place=True)
     from_layer = relu_name
@@ -151,7 +148,7 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
       num_output=out2a, kernel_size=1, pad=0, stride=stride, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2b'
@@ -159,7 +156,7 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
       num_output=out2b, kernel_size=3, pad=1, stride=1, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   out_name = '{}{}'.format(conv_prefix, branch_name)
 
   branch_name = 'branch2c'
@@ -168,13 +165,13 @@ def ResBody(net, from_layer, block_name, out2a, out2b, out2c, stride, use_branch
       num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,for_HG_module=for_HG_module,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   else:
     ConvBNLayer(net, out_name, branch_name, use_bn=True, use_relu=False,
       num_output=out2c, kernel_size=1, pad=0, stride=1, use_scale=use_scale,
       conv_prefix=conv_prefix, conv_postfix=conv_postfix,
       bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-      scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+      scale_prefix=scale_prefix, scale_postfix=scale_postfix)
   branch2 = '{}{}'.format(conv_prefix, branch_name)
 
   res_name = 'res{}'.format(block_name)
@@ -246,7 +243,7 @@ def CreateHeatmapDataLayer(output_label=True, train=True, visualise=False, trans
         return data
 
 def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+        dilated=False, nopool=False, dropout=True, _layers=[]):
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
@@ -362,17 +359,17 @@ def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
             if dropout:
                 net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
 
-    # Update freeze layers.
+    # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for freeze_layer in freeze_layers:
-        if freeze_layer in layers:
-            net.update(freeze_layer, kwargs)
+    for _layer in _layers:
+        if _layer in layers:
+            net.update(_layer, kwargs)
 
     return net
 
 def VGGNetBodyBN(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+        dilated=False, nopool=False, dropout=True, _layers=[]):
 
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
@@ -541,17 +538,17 @@ def VGGNetBodyBN(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
             if dropout:
                 net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
 
-    # Update freeze layers.
+    # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for freeze_layer in freeze_layers:
-        if freeze_layer in layers:
-            net.update(freeze_layer, kwargs)
+    for _layer in _layers:
+        if _layer in layers:
+            net.update(_layer, kwargs)
 
     return net
 
 def VGGNetBodyBNkernel1(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
+        dilated=False, nopool=False, dropout=True, _layers=[]):
 
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
@@ -720,12 +717,12 @@ def VGGNetBodyBNkernel1(net, from_layer, need_fc=True, fully_conv=False, reduced
             if dropout:
                 net.drop7 = L.Dropout(net.relu7, dropout_ratio=0.5, in_place=True)
 
-    # Update freeze layers.
+    # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for freeze_layer in freeze_layers:
-        if freeze_layer in layers:
-            net.update(freeze_layer, kwargs)
+    for _layer in _layers:
+        if _layer in layers:
+            net.update(_layer, kwargs)
 
     return net
 
@@ -1133,7 +1130,7 @@ def CreateMultiBoxHead(net, data_layer="data", num_classes=[], from_layers=[],
     return mbox_layers
 
 
-def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
+def SqueezeNetBody(net, from_layer, for_HG_module=False):
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
@@ -1141,33 +1138,33 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
 
     assert from_layer in net.keys()
     ConvBNLayer(net, from_layer, 'conv1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=3, pad=0, stride=1,for_HG_module=for_HG_module)
 
     net.pool1s = L.Pooling(net.conv1, pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire2
     ConvBNLayer(net, 'pool1s', 'fire2/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire2 = []
     ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire2/squeeze1x1', 'fire2/expand3x3', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
 
     expand_fire2.append(net['fire2/expand1x1'])
     expand_fire2.append(net['fire2/expand3x3'])
     net['fire2/concat'] = L.Concat(*expand_fire2, axis=1)
     #fire3
     ConvBNLayer(net, 'fire2/concat', 'fire3/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire3 = []
     ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire3/squeeze1x1', 'fire3/expand3x3', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
 
     expand_fire3.append(net['fire3/expand1x1'])
     expand_fire3.append(net['fire3/expand3x3'])
@@ -1176,28 +1173,28 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     net.pool3 = L.Pooling(net['fire3/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire4
     ConvBNLayer(net, 'pool3', 'fire4/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire4 = []
     ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand1x1', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire4/squeeze1x1', 'fire4/expand3x3', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
 
     expand_fire4.append(net['fire4/expand1x1'])
     expand_fire4.append(net['fire4/expand3x3'])
     net['fire4/concat'] = L.Concat(*expand_fire4, axis=1)
     #fire5
     ConvBNLayer(net, 'fire4/concat', 'fire5/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=32, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire5 = []
     ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand1x1', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=128, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire5/squeeze1x1', 'fire5/expand3x3', use_bn=True, use_relu=True,
-        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=128, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
     expand_fire5.append(net['fire5/expand1x1'])
     expand_fire5.append(net['fire5/expand3x3'])
     net['fire5/concat'] = L.Concat(*expand_fire5, axis=1)
@@ -1205,56 +1202,56 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     net.pool5 = L.Pooling(net['fire5/concat'], pool=P.Pooling.MAX, kernel_size=3, stride=2)
     #fire6
     ConvBNLayer(net, 'pool5', 'fire6/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire6 = []
     ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand1x1', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire6/squeeze1x1', 'fire6/expand3x3', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
 
     expand_fire6.append(net['fire6/expand1x1'])
     expand_fire6.append(net['fire6/expand3x3'])
     net['fire6/concat'] = L.Concat(*expand_fire6, axis=1)
     #fire7
     ConvBNLayer(net, 'fire6/concat', 'fire7/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=48, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire7 = []
     ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand1x1', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=192, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire7/squeeze1x1', 'fire7/expand3x3', use_bn=True, use_relu=True,
-        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=192, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
     expand_fire7.append(net['fire7/expand1x1'])
     expand_fire7.append(net['fire7/expand3x3'])
     net['fire7/concat'] = L.Concat(*expand_fire7, axis=1)
 
     #fire8
     ConvBNLayer(net, 'fire7/concat', 'fire8/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire8 = []
     ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand1x1', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire8/squeeze1x1', 'fire8/expand3x3', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
     expand_fire8.append(net['fire8/expand1x1'])
     expand_fire8.append(net['fire8/expand3x3'])
     net['fire8/concat'] = L.Concat(*expand_fire8, axis=1)
 
     #fire9
     ConvBNLayer(net, 'fire8/concat', 'fire9/squeeze1x1', use_bn=True, use_relu=True,
-        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=64, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     expand_fire9 = []
     ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand1x1', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     ConvBNLayer(net, 'fire9/squeeze1x1', 'fire9/expand3x3', use_bn=True, use_relu=True,
-        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=256, kernel_size=3, pad=1, stride=1,for_HG_module=for_HG_module)
     expand_fire9.append(net['fire9/expand1x1'])
     expand_fire9.append(net['fire9/expand3x3'])
     net['fire9/concat'] = L.Concat(*expand_fire9, axis=1)
@@ -1264,7 +1261,7 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
     #conv_final
 
     ConvBNLayer(net, 'drop9', 'conv10', use_bn=True, use_relu=True,
-        num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module, freeze=freeze)
+        num_output=6, kernel_size=1, pad=0, stride=1,for_HG_module=for_HG_module)
 
     #get theta
     kwargsfile = {
@@ -1277,23 +1274,23 @@ def SqueezeNetBody(net, from_layer, for_HG_module=False, freeze=False):
 
     return net
 
-def HourGlass(net, from_layer, name, n, In, out, final_relu=False, freeze=True):
-    ResBody(net, from_layer, '{}_up1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256), freeze=freeze, for_HG_module=True)
-    ResBody(net, 'res{}_up1'.format(name), '{}_up2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
-    ResBody(net, 'res{}_up2'.format(name), '{}_up4'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), freeze=freeze,for_HG_module=True)
+def HourGlass(net, from_layer, name, n, In, out, final_relu=False):
+    ResBody(net, from_layer, '{}_up1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256),  for_HG_module=True)
+    ResBody(net, 'res{}_up1'.format(name), '{}_up2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, for_HG_module=True)
+    ResBody(net, 'res{}_up2'.format(name), '{}_up4'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), for_HG_module=True)
 
     net['{}_pool1'.format(name)] = L.Pooling(net[from_layer], pool=P.Pooling.MAX, kernel_size=2, stride=2)
-    ResBody(net, '{}_pool1'.format(name), '{}_low1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256), freeze=freeze,for_HG_module=True)
-    ResBody(net, 'res{}_low1'.format(name), '{}_low2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
-    ResBody(net, 'res{}_low2'.format(name), '{}_low5'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, '{}_pool1'.format(name), '{}_low1'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=(In != 256), for_HG_module=True)
+    ResBody(net, 'res{}_low1'.format(name), '{}_low2'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, for_HG_module=True)
+    ResBody(net, 'res{}_low2'.format(name), '{}_low5'.format(name), out2a=128, out2b=128, out2c=256, stride=1, use_branch1=False, for_HG_module=True)
 
     if n > 1:
-        HourGlass(net,'res{}_low5'.format(name), '{}_low6'.format(name), n-1, 256, out, freeze=freeze)
+        HourGlass(net,'res{}_low5'.format(name), '{}_low6'.format(name), n-1, 256, out)
         layer_name = '{}_low6'.format(name)
     else:
-        ResBody(net, 'res{}_low5'.format(name), '{}_low6'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), freeze=freeze,for_HG_module=True)
+        ResBody(net, 'res{}_low5'.format(name), '{}_low6'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=(out != 256), for_HG_module=True)
         layer_name = 'res{}_low6'.format(name)
-    ResBody(net, layer_name, '{}_low7'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
+    ResBody(net, layer_name, '{}_low7'.format(name), out2a=out/2, out2b=out/2, out2c=out, stride=1, use_branch1=False, for_HG_module=True)
     
     factor = 2
     kernel = factor
@@ -1309,7 +1306,7 @@ def HourGlass(net, from_layer, name, n, In, out, final_relu=False, freeze=True):
       relu_name = '{}_relu'.format(res_name)
       net[relu_name] = L.ReLU(net[res_name], in_place=True)
 
-def HGStacked(net, from_layer, freeze=True):
+def HGStacked(net, from_layer):
 
     conv_prefix = ''
     conv_postfix = ''
@@ -1321,38 +1318,38 @@ def HGStacked(net, from_layer, freeze=True):
         num_output=64, kernel_size=7, pad=3, stride=2,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
 
-    ResBody(net, 'conv1_b', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'conv1_b', '1', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=True, for_HG_module=True)
 
     net.pool1 = L.Pooling(net.res1, pool=P.Pooling.MAX, kernel_size=2, stride=2)
 
-    ResBody(net, 'pool1', '4', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
-    ResBody(net, 'res4', '5', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, freeze=freeze,for_HG_module=True)
-    ResBody(net, 'res5', '6', out2a=128, out2b=128, out2c=256, stride=1, use_branch1=True, freeze=freeze,for_HG_module=True)
+    ResBody(net, 'pool1', '4', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, for_HG_module=True)
+    ResBody(net, 'res4', '5', out2a=64, out2b=64, out2c=128, stride=1, use_branch1=False, for_HG_module=True)
+    ResBody(net, 'res5', '6', out2a=128, out2b=128, out2c=256, stride=1, use_branch1=True, for_HG_module=True)
 
-    HourGlass(net, 'res6', 'hg1', n=4, In=256, out=512, freeze=freeze)
+    HourGlass(net, 'res6', 'hg1', n=4, In=256, out=512)
 
     ConvBNLayer(net, 'hg1', 'linear1', use_bn=True, use_relu=True,
         num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     ConvBNLayer(net, 'linear1', 'linear2', use_bn=True, use_relu=True,
         num_output=256, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     ConvBNLayer(net, 'linear2', 'out1', use_bn=False, use_relu=False, use_scale=False,
         num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     ConvBNLayer(net, 'out1', 'out1_', use_bn=False, use_relu=False, use_scale=False,
         num_output=384, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     concat = []
     concat.append(net.linear2)
     concat.append(net.pool1)
@@ -1361,24 +1358,24 @@ def HGStacked(net, from_layer, freeze=True):
         num_output=256+128, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     net.int1 = L.Eltwise(net.concat1_CN, net['out1_'])
 
-    HourGlass(net, 'int1', 'hg2', n=4, In=384, out=512, freeze=freeze)
+    HourGlass(net, 'int1', 'hg2', n=4, In=384, out=512)
     ConvBNLayer(net, 'hg2', 'linear3', use_bn=True, use_relu=True,
         num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     ConvBNLayer(net, 'linear3', 'linear4', use_bn=True, use_relu=True,
         num_output=512, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
     ConvBNLayer(net, 'linear4', 'output', use_bn=False, use_relu=False, use_scale=False,
         num_output=16, kernel_size=1, pad=0, stride=1,for_HG_module=True,
         conv_prefix=conv_prefix, conv_postfix=conv_postfix,
         bn_prefix=bn_prefix, bn_postfix=bn_postfix,
-        scale_prefix=scale_prefix, scale_postfix=scale_postfix, freeze=freeze)
+        scale_prefix=scale_prefix, scale_postfix=scale_postfix)
 
     return net

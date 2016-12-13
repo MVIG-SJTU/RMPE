@@ -40,7 +40,7 @@ import os
 image_resize = 500
 det_net.blobs['data'].reshape(1,3,image_resize,image_resize)
 
-configThred = 0.1
+configThred = 0.3#lower this threshold can improve recall but decrease precision, in our paper we use 0.09
 NMSThred = 0.45
 #for img_name in open('examples/mppp/util/test_images.txt','r'):  #Use this line to evaluate on the whole test test.
 for img_name in open('examples/mppp/util/demo_images.txt','r'):

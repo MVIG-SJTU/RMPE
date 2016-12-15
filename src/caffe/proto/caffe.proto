@@ -1126,6 +1126,7 @@ message HeatmapDataParameter {
   optional string bbox_or_centerscale = 1017 [ default = 'centerscale' ];
   optional float scale_width = 1018 [ default = 1.0 ];
   optional float scale_height = 1019 [ default = 1.0 ];
+  optional bool shuffle = 1020;
 }
 
 // Message that stores parameters used by HDF5DataLayer

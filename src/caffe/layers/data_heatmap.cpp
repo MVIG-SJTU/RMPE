@@ -176,6 +176,15 @@ void DataHeatmapLayer<Dtype>::DataLayerSetUp(const vector<Blob<Dtype>*>& bottom,
     }
 
 
+    if (this->layer_param_.heatmap_data_param().shuffle()) {
+    // randomly shuffle data
+    LOG(INFO) << "Shuffling data";
+    const unsigned int prefetch_rng_seed = caffe_rng_rand();
+    prefetch_rng_.reset(new Caffe::RNG(prefetch_rng_seed));
+    caffe::rng_t* prefetch_rng =
+      static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+    shuffle(img_label_list_.begin(), img_label_list_.end(), prefetch_rng);
+    }
     //  no mean, assume input images are RGB (3 channels)
     this->datum_channels_ = 3;
 
@@ -702,8 +711,17 @@ void DataHeatmapLayer<Dtype>::AdvanceCurImg()
     {
         if (cur_img_ < img_label_list_.size() - 1)
             cur_img_++;
-        else
+        else{
             cur_img_ = 0;
+	    if (this->layer_param_.heatmap_data_param().shuffle()) {
+           	    LOG(INFO) << "Shuffling data";
+    		    const unsigned int prefetch_rng_seed = caffe_rng_rand();
+    		    prefetch_rng_.reset(new Caffe::RNG(prefetch_rng_seed));
+    		    caffe::rng_t* prefetch_rng =
+      			static_cast<caffe::rng_t*>(prefetch_rng_->generator());
+    		    shuffle(img_label_list_.begin(), img_label_list_.end(), prefetch_rng);
+     	    }
+	}
     }
     else
     {

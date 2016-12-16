@@ -42,8 +42,8 @@ det_net.blobs['data'].reshape(1,3,image_resize,image_resize)
 
 configThred = 0.3#lower this threshold can improve recall but decrease precision, in our paper we use 0.09, but 0.3 is better for demo
 NMSThred = 0.45
-#for img_name in open('examples/mppp/util/test_images.txt','r'):  #Use this line to evaluate on the whole test test.
-for img_name in open('examples/mppp/util/demo_images.txt','r'):
+#for img_name in open('examples/rmpe/util/test_images.txt','r'):  #Use this line to evaluate on the whole test test.
+for img_name in open('examples/rmpe/util/demo_images.txt','r'):
 	# check if image exists
 	filename = os.path.join(img_dir, img_name.rstrip('\n'))
 	if (os.path.isfile(filename) == False):
@@ -123,7 +123,7 @@ for img_name in open('examples/mppp/util/demo_images.txt','r'):
 	    bboxes.append([xmin,ymin,xmax,ymax])
 
 	#run pose level NMS with threshold of number of match keypoints
-	preds, scores = PCK_pose_NMS(preds_noNMS, scores_noNMS, bboxes)
+	preds, scores = pose_NMS(preds_noNMS, scores_noNMS, bboxes)
 
 
 

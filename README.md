@@ -52,6 +52,7 @@ Please cite RMPE in your publications if the code or paper helps your research:
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
   ```Shell
   # Modify Makefile.config according to your Caffe installation.
+  # Note that the SSTN module currently ONLY have GPU implementation so you need to make&run it with GPU
   cp Makefile.config.example Makefile.config
   make -j8
   # Make sure to include $CAFFE_ROOT/python to your PYTHONPATH.

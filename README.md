@@ -132,7 +132,7 @@ Note that I am currently working on an implementation in Caffe. The script may c
   #our result is stored in txt format, to evaluate, Download MPII toolkit and put it in current directory
   matlab
   #In matlab
-  set_pred()
+  setpred()
   ```
 
 ### Acknowledgements

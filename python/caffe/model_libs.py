@@ -243,7 +243,7 @@ def CreateHeatmapDataLayer(output_label=True, train=True, visualise=False, trans
         return data
 
 def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, _layers=[]):
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
             'weight_filler': dict(type='xavier'),
@@ -362,14 +362,14 @@ def VGGNetBody(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
     # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for _layer in _layers:
-        if _layer in layers:
-            net.update(_layer, kwargs)
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
 
     return net
 
 def VGGNetBodyBN(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, _layers=[]):
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
 
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
@@ -541,14 +541,14 @@ def VGGNetBodyBN(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
     # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for _layer in _layers:
-        if _layer in layers:
-            net.update(_layer, kwargs)
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
 
     return net
 
 def VGGNetBodyBNkernel1(net, from_layer, need_fc=True, fully_conv=False, reduced=False,
-        dilated=False, nopool=False, dropout=True, _layers=[]):
+        dilated=False, nopool=False, dropout=True, freeze_layers=[]):
 
     kwargs = {
             'param': [dict(lr_mult=1, decay_mult=1), dict(lr_mult=2, decay_mult=0)],
@@ -720,9 +720,9 @@ def VGGNetBodyBNkernel1(net, from_layer, need_fc=True, fully_conv=False, reduced
     # Update  layers.
     kwargs['param'] = [dict(lr_mult=0, decay_mult=0), dict(lr_mult=0, decay_mult=0)]
     layers = net.keys()
-    for _layer in _layers:
-        if _layer in layers:
-            net.update(_layer, kwargs)
+    for freeze_layer in freeze_layers:
+        if freeze_layer in layers:
+            net.update(freeze_layer, kwargs)
 
     return net
 

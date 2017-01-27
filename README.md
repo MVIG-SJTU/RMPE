@@ -15,10 +15,19 @@ RMPE is a two steps framework for the task of multi-person pose estimation. You 
 | Method | MPII full test *mAP* | s/frame |
 |:-------|:-----:|:-------:|:-------:|
 | [Iqbal&Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 10 |
-| [DeeperCut](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 | 
-| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **69.2** | **0.8** |
+| [DeeperCut, ECCV16](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 | 
+| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **75.3** | **0.8** |
 
 </center>
+Results on COCO test-dev 2015:
+<center>
+
+| Method | AP @0.5:0.95 | AP @0.5 | AP @0.75 |
+|:-------|:-----:|:-------:|:-------:|
+| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **0.57** | **0.81** | **0.64** |
+
+</center>
+Note: We update our single person pose estimator from a 2-stacked hourglass model to a 8-stacked model(as reported in their ECCV16 paper). Will update our arxiv paper and codes in the near future.
 
 ### Citing RMPE
 

@@ -27,7 +27,8 @@ Results on COCO test-dev 2015:
 | **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **0.57** | **0.81** | **0.64** |
 
 </center>
-Note: We update our single person pose estimator from a 2-stacked hourglass model to a 8-stacked model(as reported in their ECCV16 paper). Will update our arxiv paper and codes in the near future.
+
+_Note: We update our single person pose estimator from a 2-stacked hourglass model to a 8-stacked model(as reported in their ECCV16 paper). Will update our arxiv paper and codes in the near future.
 
 ### Citing RMPE
 

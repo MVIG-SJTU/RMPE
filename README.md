@@ -1,22 +1,29 @@
 # RMPE: Regional Multi-person Pose Estimation
-
-By [Haoshu Fang](https://fang-haoshu.github.io), Shuqin Xie, [Cewu Lu](https://cvsjtu.wordpress.com/).
+By [Haoshu Fang](https://fang-haoshu.github.io), Shuqin Xie, Yuwing Tai, [Cewu Lu](https://cvsjtu.wordpress.com/).
 
 ### Introduction
 
-RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our [arXiv paper](https://arxiv.org/abs/1612.00137v1).
+RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our arxiv [paper](https://arxiv.org/abs/1612.00137).
 
 <p align="center">
-<img src="https://fang-haoshu.github.io/publications/rmpe/sh_files/framework.jpg" alt="RMPE Framework" width="600px">
+<img src="https://github.com/fang-haoshu/RMPE/blob/master/readme/new-framework.jpg" alt="RMPE Framework" width="600px">
 </p>
 
+### Results
+<p align="left">
+<img src="https://github.com/Fang-Haoshu/RMPE/blob/master/readme/demo.gif", width="720">
+</p>
+
+Video results available [here](https://www.youtube.com/watch?v=RHNdbEY5xn4)
+
+Results on MPII dataset:
 <center>
 
 | Method | MPII full test *mAP* | s/frame |
-|:-------|:-----:|:-------:|:-------:|
-| [Iqbal&Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 10 |
-| [DeeperCut, ECCV16](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 | 
-| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **75.3** | **0.8** |
+|:-------|:-----:|:-------:|
+| [Iqbal & Gall, ECCVw'16](http://arxiv.org/abs/1608.08526) | 43.1 | 10 |
+| [DeeperCut, ECCV16](http://pose.mpi-inf.mpg.de/) | 59.5 | 485 |
+| **[RMPE](https://github.com/fang-haoshu/RMPE)** | **76.7** | **1.5** |
 
 </center>
 Results on COCO test-dev 2015:
@@ -24,22 +31,9 @@ Results on COCO test-dev 2015:
 
 | Method | AP @0.5:0.95 | AP @0.5 | AP @0.75 |
 |:-------|:-----:|:-------:|:-------:|
-| **[RMPE](https://fang-haoshu.github.io/publications/rmpe/)** | **0.57** | **0.81** | **0.64** |
+| **[RMPE](https://github.com/fang-haoshu/RMPE)** | **61.0** | **82.9** | **68.8** |
 
 </center>
-
-_Note: We update our single person pose estimator from a 2-stacked hourglass model to a 8-stacked model(as reported in their ECCV16 paper). Will update our arxiv paper and codes in the near future._
-
-### Citing RMPE
-
-Please cite RMPE in your publications if the code or paper helps your research:
-
-    @article{fang16rmpe,
-      Title = {{RMPE}: Regional Multi-person Pose Estimation},
-      Author = {Haoshu Fang, Shuqin Xie and Cewu Lu },
-      Journal = {arXiv preprint arXiv:1612.00137},
-      Year = {2016}
-    }
 
 ### Contents
 1. [Installation](#installation)
@@ -51,12 +45,12 @@ Please cite RMPE in your publications if the code or paper helps your research:
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
   ```Shell
-  git clone git@github.com:MVLG/RMPE.git
+  git clone https://github.com/MVIG-SJTU/RMPE.git
   cd RMPE
   ```
   you can also download code from 
   ```shell
-  git clone git@github.com:Fang-Haoshu/RMPE.git
+  git clone https://github.com/Fang-Haoshu/RMPE.git
   ```
 
 2. Build the code. Please follow [Caffe instruction](http://caffe.berkeleyvision.org/installation.html) to install all necessary packages and build it.
@@ -78,56 +72,38 @@ Please cite RMPE in your publications if the code or paper helps your research:
 
 ### Preparation
 #### For demo only
-1. Download pre-trained human detector([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9Pck8tZW1wMVlWNjA)|[Baidu cloud](http://pan.baidu.com/s/1hssOFWS)) and SPPE+SSTN model([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9PejV6OUZhUllzQWs)|[Baidu cloud](http://pan.baidu.com/s/1geVQkKj)). By default, we assume the models are stored in `$CAFFE_ROOT/models/VGG_SSD/` and `$CAFFE_ROOT/models/SPPE/` accordingly.
+1. Download pre-trained human detector([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9Pck8tZW1wMVlWNjA)|[Baidu cloud](http://pan.baidu.com/s/1hssOFWS)) and SPPE+SSTN caffe model([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9PejV6OUZhUllzQWs)|[Baidu cloud](http://pan.baidu.com/s/1geVQkKj)). By default, we assume the models are stored in `$CAFFE_ROOT/models/VGG_SSD/` and `$CAFFE_ROOT/models/SPPE/` accordingly.
 
 #### For train/eval
-1. Download [fully convolutional reduced (atrous) VGGNet](https://gist.github.com/weiliu89/2ed6e13bfd5b57cf81d6). By default, we assume the model is stored in `$CAFFE_ROOT/models/VGG_SSD/`
-
-2. Download [MPII images](http://datasets.d2.mpi-inf.mpg.de/andriluka14cvpr/mpii_human_pose_v1.tar.gz) and [COCO14 training set](http://msvocds.blob.core.windows.net/coco2014/train2014.zip). By default, we assume the images are stored in `/data/MPII_COCO14/images/`.
-
-3. Download MPII_COCO14 Annotations([Google drive](https://drive.google.com/open?id=0BxORzoJl8N9PWFhfdzR6S1g1bHc)|[Baidu cloud](http://pan.baidu.com/s/1i4911zB)). By default, we assume the XMLs are stored in the `/data/MPII_COCO14/Annotations/`.
+This part of our model is implemented in Torch7. Please refer to [this repo](https://github.com/fang-haoshu/multi-human-pose) for more details.
 
 ### Demo
 Our experiments use both Caffe and Torch7. But we implement the whole framework in Caffe so you can run the demo easily.
+_Note: The current caffe model of SPPE use the 2-stacked hourglass network which has a lower precision. We will be grateful if anyone can help to transfer [new torch model](https://pan.baidu.com/s/1i4LJn97) to caffe._
+
 1. Run the ipython notebook. It will show you how our whole framework works
 
   ```Shell
   cd $CAFFE_ROOT
   # it shows how our framework works
   jupyter notebook examples/rmpe/Regional\ Multi-person\ Pose\ Estimation.ipynb
-  # run the python program for more results
+  ```  
+  
+2. Run the python program for more results
+
+  ```Shell
   python examples/rmpe/demo.py
-  ```
+  ```  
 
 ### Train/Eval
-1. Train human detector. 
-We use the data in MPII and COCO14 to train our human detector. We have already create the train/val list in `CAFFE_ROOT/data/MPII_COCO14` and release our script in `CAFFE_ROOT/examples/rmpe`, so basically what you need to do will be something like
-  ```Shell
-  # First create the LMDB file.
-  cd $CAFFE_ROOT
-  # You can modify the parameters in create_data.sh if needed.
-  # It will create lmdb files for trainval and test with encoded original image:
-  #   - /data/MPII_COCO14/lmdb/MPII_COCO14_trainval_lmdb
-  #   - /data/MPII_COCO14/lmdb/MPII_COCO14_test_lmdb
-  # and make soft links at examples/MPII_COCO14/
-  ./data/MPII_COCO14/create_data.sh
-  # It will create model definition files and save snapshot models in:
-  #   - $CAFFE_ROOT/models/VGG_SSD/MPII_COCO14/SSD_500x500/
-  # and job file, log file, and the python script in:
-  #   - $CAFFE_ROOT/jobs/VGG_SSD/MPII_COCO14/SSD_500x500/
-  # and save temporary evaluation results in:
-  #   - $HOME/data/MPII_COCO14/results/SSD_500x500/
-  # It should reach 85.* mAP at 60k iterations.
-  python examples/rmpe/ssd_pascal_MPII_COCO14VGG.py
-  ```
 
-2. Train SPPE+SSTN.
-This part of our model is implemented in Torch7. Please refer to [this repo](https://github.com/Fang-Haoshu/multi-human-pose) for more details.
+1. Train SPPE+SSTN.
+This part of our model is implemented in Torch7. Please refer to [this repo](https://github.com/fang-haoshu/multi-human-pose) for more details.
 We will call the directory that you cloned the repo into `$SPPE_ROOT`.
-Note that I am currently working on an implementation in Caffe. The script may come out soon.
+I have written an implementation in Caffe. You can email me for the script.
 
 
-3. Evaluate the model. You can modify line 45 in `demo.py` to evaluate our framework on whole test set. But the results may be slightly different from our work. To reproduce our results reported in our paper:
+2. Evaluate the model. You can modify line 45 in `demo.py` to evaluate our framework on whole test set. But the results will be different. To reproduce our results reported in our paper:
   ```Shell
   # First get the result of human detector
   cd $CAFFE_ROOT

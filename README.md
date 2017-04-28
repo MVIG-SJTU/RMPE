@@ -32,7 +32,7 @@ Results on COCO test-dev 2015:
 
 | Method | AP @0.5:0.95 | AP @0.5 | AP @0.75 |
 |:-------|:-----:|:-------:|:-------:|
-| **[RMPE](https://github.com/fang-haoshu/RMPE)** | **61.0** | **82.9** | **68.8** |
+| **[RMPE](https://github.com/fang-haoshu/RMPE)** | **61.8** | **83.7** | **69.8** |
 
 </center>
 

@@ -41,7 +41,8 @@ Results on COCO test-dev 2015:
 2. [Preparation](#preparation)
 3. [Demo](#demo)
 4. [Train/Eval](#traineval)
-5. [Acknowledgements](#acknowledgements)
+5. [Citation](#citation)
+6. [Acknowledgements](#acknowledgements)
 
 ### Installation
 1. Get the code. We will call the directory that you cloned Caffe into `$CAFFE_ROOT`
@@ -116,7 +117,16 @@ I have written an implementation in Caffe. You can email me for the script.
   #In matlab
   setpred()
   ```
+### Citation
+Please cite the paper in your publications if it helps your research:    
 
+    @inproceedings{fang2016rmpe,
+      title={{RMPE}: Regional Multi-person Pose Estimation},
+      author={Haoshu Fang, Shuqin Xie, Yuwing Tai and Cewu Lu},
+      journal={arXiv preprint arXiv:1612.00137},
+      year={2016}
+    }
+      
 ### Acknowledgements
 
 Thanks to [Wei Liu](https://github.com/weiliu89/caffe/tree/ssd), [Alejandro Newell](https://github.com/anewell/pose-hg-train), [Pfister, T.](https://github.com/tpfister/caffe-heatmap), [Kaichun Mo](https://github.com/daerduoCarey/SpatialTransformerLayer), [Maxime Oquab](https://github.com/qassemoquab/stnbhwd) for contributing their codes. 

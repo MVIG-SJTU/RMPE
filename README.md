@@ -124,12 +124,12 @@ I have written an implementation in Caffe. You can email me for the script.
 ### Citation
 Please cite the paper in your publications if it helps your research:    
 
-    @inproceedings{fang2017rmpe,
-      title={{RMPE}: Regional Multi-person Pose Estimation},
-      author={Hao-Shu Fang, Shuqin Xie, Yu-Wing Tai and Cewu Lu},
-      booktitle={ICCV},
-      year={2017}
-    }
+@inproceedings{fang2017rmpe,
+  title={{RMPE}: Regional Multi-person Pose Estimation},
+  author={Fang, Hao-Shu and Xie, Shuqin and Tai, Yu-Wing and Lu, Cewu},
+  booktitle=ICCV,
+  year={2017}
+}
       
 ### Acknowledgements
 

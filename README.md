@@ -127,7 +127,7 @@ Please cite the paper in your publications if it helps your research:
     @inproceedings{fang2017rmpe,
       title={{RMPE}: Regional Multi-person Pose Estimation},
       author={Fang, Hao-Shu and Xie, Shuqin and Tai, Yu-Wing and Lu, Cewu},
-      booktitle=ICCV,
+      booktitle={ICCV},
       year={2017}
     }
       

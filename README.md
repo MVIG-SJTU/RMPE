@@ -1,8 +1,7 @@
 # RMPE: Regional Multi-person Pose Estimation
 By [Hao-Shu Fang](https://fang-haoshu.github.io), Shuqin Xie, Yu-Wing Tai, [Cewu Lu](https://cvsjtu.wordpress.com/).
 
-# New version AlphaPose is released. The accuracy is 10 mAP higher than this repo. Please move to [https://github.com/MVIG-SJTU/AlphaPose[https://github.com/MVIG-SJTU/AlphaPose](https://github.com/MVIG-SJTU/AlphaPose[https://github.com/MVIG-SJTU/AlphaPose)
-### Introduction
+## New version AlphaPose is released. The accuracy is 10 mAP higher than this repo. Please move to https://github.com/MVIG-SJTU/AlphaPose[https://github.com/MVIG-SJTU/AlphaPose
 
 RMPE is a two steps framework for the task of multi-person pose estimation. You can use the code to train/evaluate a model for pose estimation task. For more details, please refer to our arxiv [paper](https://arxiv.org/abs/1612.00137).
 

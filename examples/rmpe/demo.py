@@ -118,7 +118,7 @@ for img_name in open('examples/rmpe/util/demo_images.txt','r'):
 	    for i in range(0,16):
 	        real_loc = transformBoxInvert([predictions[0,0,:,3*i+0],predictions[0,0,:,3*i+1]],xmin,ymin,xmax,ymax,64)
 	        pred_noNMS.append(real_loc) #16 (x,y)
-	        score_noNMS.append(predictions[0,0,:,3*i+2])
+	        score_noNMS.append(np.array(predictions[0,0,:,3*i+2]))
 	    preds_noNMS.append(pred_noNMS)
 	    scores_noNMS.append(score_noNMS)
 	    bboxes.append([xmin,ymin,xmax,ymax])
